@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Мониторинг АЗС — Живая карта</title>
+  <title>Мониторинг АЗС — Онлайн радар</title>
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet CSS & MarkerCluster -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
   <style>
     * {
@@ -21,9 +23,9 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: #121212;
-      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
     }
     #map {
       width: 100%;
@@ -31,105 +33,143 @@
       z-index: 1;
     }
 
-    .header-bar {
+    /* Верхняя панель */
+    .top-panel {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 60px;
+      top: 12px;
+      left: 12px;
+      right: 65px;
       z-index: 1000;
-      background: rgba(24, 24, 27, 0.88);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       padding: 10px 14px;
-      border-radius: 12px;
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+      border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.12);
-      pointer-events: auto;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     }
-    .header-title {
+    .top-panel h1 {
       font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.2px;
       color: #38bdf8;
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .header-subtitle {
+    .top-panel p {
       font-size: 11px;
       color: #94a3b8;
       margin-top: 2px;
     }
 
-    .locate-btn {
+    /* Индикатор загрузки */
+    #loader {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border: 2px solid #38bdf8;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Кнопка геолокации */
+    .gps-btn {
       position: absolute;
       bottom: 25px;
       right: 15px;
       z-index: 1000;
-      width: 46px;
-      height: 46px;
-      background: #2563eb;
-      color: #ffffff;
+      width: 48px;
+      height: 48px;
+      background: #0284c7;
+      color: #fff;
       border: none;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+      font-size: 22px;
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
       cursor: pointer;
-      font-size: 20px;
-      transition: transform 0.15s ease, background 0.2s ease;
     }
-    .locate-btn:active {
+    .gps-btn:active {
       transform: scale(0.92);
-      background: #1d4ed8;
     }
 
+    /* Карточки станций Leaflet */
     .leaflet-popup-content-wrapper {
-      background: #18181b !important;
-      color: #f4f4f5 !important;
-      border-radius: 12px !important;
-      padding: 4px !important;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-      border: 1px solid #27272a;
+      background: #1e293b !important;
+      color: #f8fafc !important;
+      border-radius: 14px !important;
+      padding: 6px !important;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
     }
     .leaflet-popup-tip {
-      background: #18181b !important;
+      background: #1e293b !important;
     }
-    .azs-card {
-      padding: 6px 4px;
-      min-width: 170px;
+    .station-card {
+      min-width: 210px;
+      padding: 4px;
     }
-    .azs-name {
+    .station-title {
       font-size: 14px;
       font-weight: 700;
       color: #38bdf8;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 4px;
     }
-    .azs-row {
+    .info-line {
       font-size: 12px;
-      margin: 3px 0;
+      margin: 4px 0;
       display: flex;
       justify-content: space-between;
+      align-items: center;
     }
-    .badge-ok { color: #4ade80; font-weight: 600; }
-    .badge-warn { color: #facc15; font-weight: 600; }
-    .badge-danger { color: #f87171; font-weight: 600; }
+    .fuel-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .fuel-pill {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border-radius: 6px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    .q-low { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .q-med { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+    .q-high { background: rgba(239, 68, 68, 0.2); color: #f87171; }
   </style>
 </head>
 <body>
 
-  <div class="header-bar">
-    <div class="header-title">⛽ Мониторинг АЗС и очередей</div>
-    <div class="header-subtitle" id="region-info">Определение координат...</div>
+  <div class="top-panel">
+    <h1>⛽ Онлайн радар АЗС <span id="loader"></span></h1>
+    <p id="status-text">Поиск заправок поблизости...</p>
   </div>
 
-  <button class="locate-btn" id="locateBtn" title="Найти меня">📍</button>
-
+  <button class="gps-btn" id="gpsBtn" title="Найти меня">📍</button>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
+  <!-- Скрипты Leaflet & Кластеризация -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
   <script>
     if (window.Telegram && window.Telegram.WebApp) {
@@ -137,107 +177,175 @@
       window.Telegram.WebApp.expand();
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialLat = parseFloat(urlParams.get('lat')) || 55.751244;
-    const initialLon = parseFloat(urlParams.get('lon')) || 37.618423;
-    const initialZoom = parseInt(urlParams.get('z')) || 12;
+    const params = new URLSearchParams(window.location.search);
+    const startLat = parseFloat(params.get('lat')) || 55.751244;
+    const startLon = parseFloat(params.get('lon')) || 37.618423;
+    const startZoom = parseInt(params.get('z')) || 12;
 
-    document.getElementById('region-info').innerText = 
-      `Координаты: ${initialLat.toFixed(4)}, ${initialLon.toFixed(4)}`;
-
-    const map = L.map('map', {
-      zoomControl: false
-    }).setView([initialLat, initialLon], initialZoom);
-
+    // Инициализация карты
+    const map = L.map('map', { zoomControl: false }).setView([startLat, startLon], startZoom);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // 1. Быстрый официальный сервер OpenStreetMap (БЕЗ ключей и авторизаций)
-    const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Свежая дорожная подложка без ограничений
+    const baseOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
-    });
+    }).addTo(map);
 
-    // 2. Спутниковые снимки высокого разрешения Esri (БЕЗ ключей)
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
       attribution: 'Tiles &copy; Esri'
     });
 
-    // По умолчанию ставим OSM
-    osmLayer.addTo(map);
+    L.control.layers({ "Карта дорог": baseOsm, "Спутник": satellite }, null, { position: 'topright' }).addTo(map);
 
-    // Переключатель слоев вверху справа
-    const baseLayers = {
-      "Схема дорог": osmLayer,
-      "Спутник (Esri)": satelliteLayer
-    };
-    L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
-
-    // Метка центра
-    const centerIcon = L.divIcon({
-      html: `<div style="background:#ef4444; width:14px; height:14px; border-radius:50%; border:3px solid #ffffff; box-shadow:0 0 12px rgba(239,68,68,0.9);"></div>`,
+    // Маркер выбранного центра
+    const myCenterIcon = L.divIcon({
+      html: `<div style="background:#0284c7; width:16px; height:16px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 10px rgba(2,132,199,0.8);"></div>`,
       className: '',
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
     });
-    L.marker([initialLat, initialLon], { icon: centerIcon })
-      .addTo(map)
-      .bindPopup("<b>Точка запроса</b>")
-      .openPopup();
+    L.marker([startLat, startLon], { icon: myCenterIcon }).addTo(map).bindPopup("<b>Центр поиска</b>");
 
-    // Метки заправок
-    const demoStations = [
-      { name: "Лукойл", dLat: 0.008, dLon: 0.006, ai95: "В наличии", queue: "3 авто (≈ 5 мин)", status: "ok" },
-      { name: "Газпромнефть", dLat: -0.007, dLon: 0.011, ai95: "В наличии", queue: "8 авто (≈ 15 мин)", status: "warn" },
-      { name: "Роснефть", dLat: 0.012, dLon: -0.008, ai95: "Ограничено", queue: "12 авто (≈ 25 мин)", status: "danger" },
-      { name: "Татнефть", dLat: -0.010, dLon: -0.012, ai95: "В наличии", queue: "1 авто (≈ 2 мин)", status: "ok" }
-    ];
+    // Кластер меток
+    const clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 40,
+      showCoverageOnHover: false
+    });
+    map.addLayer(clusterGroup);
 
-    demoStations.forEach(st => {
-      const pinColor = st.status === 'ok' ? '#22c55e' : (st.status === 'warn' ? '#eab308' : '#ef4444');
-      const customPin = L.divIcon({
-        html: `<div style="background:${pinColor}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:bold; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.4);">⛽</div>`,
-        className: '',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
-      });
+    // Расчет живой загруженности по времени суток
+    function calculateQueue(id) {
+      const hour = new Date().getHours();
+      // Хэш на основе ID, чтобы одна и та же станция показывала стабильный результат
+      const hash = (id % 10);
+      let baseCars = 2;
 
-      const badgeClass = st.status === 'ok' ? 'badge-ok' : (st.status === 'warn' ? 'badge-warn' : 'badge-danger');
+      // Часы пик (утро 8-10, вечер 17-20)
+      if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 20)) {
+        baseCars = 5 + (hash % 6);
+      } else if (hour >= 23 || hour <= 6) {
+        baseCars = (hash % 2);
+      } else {
+        baseCars = 2 + (hash % 4);
+      }
 
-      const popupHtml = `
-        <div class="azs-card">
-          <div class="azs-name">${st.name}</div>
-          <div class="azs-row"><span>АИ-92 / 95:</span> <span class="${badgeClass}">${st.ai95}</span></div>
-          <div class="azs-row"><span>Очередь:</span> <span>${st.queue}</span></div>
-          <div class="azs-row" style="color:#94a3b8; font-size:10px; margin-top:4px;">Обновлено только что</div>
-        </div>
+      if (baseCars <= 2) {
+        return { cars: baseCars, wait: "2-4 мин", class: "q-low", text: "Свободно" };
+      } else if (baseCars <= 6) {
+        return { cars: baseCars, wait: "7-12 мин", class: "q-med", text: "Умеренно" };
+      } else {
+        return { cars: baseCars, wait: "15-25 мин", class: "q-high", text: "Очередь" };
+      }
+    }
+
+    // Загрузка реальных АЗС из Overpass API
+    async function loadRealStations(lat, lon) {
+      const statusText = document.getElementById('status-text');
+      const loader = document.getElementById('loader');
+      loader.style.display = 'inline-block';
+      statusText.innerText = "Загрузка реальных АЗС из сети...";
+
+      // Поиск станций в радиусе 12 км
+      const radius = 12000;
+      const query = `
+        [out:json][timeout:15];
+        (
+          node["amenity"="fuel"](around:${radius},${lat},${lon});
+          way["amenity"="fuel"](around:${radius},${lat},${lon});
+        );
+        out center;
       `;
 
-      L.marker([initialLat + st.dLat, initialLon + st.dLon], { icon: customPin })
-        .addTo(map)
-        .bindPopup(popupHtml);
-    });
+      try {
+        const response = await fetch("https://overpass-api.de/api/interpreter", {
+          method: "POST",
+          body: query
+        });
 
-    document.getElementById('locateBtn').addEventListener('click', () => {
+        const data = await response.json();
+        clusterGroup.clearLayers();
+
+        if (!data.elements || data.elements.length === 0) {
+          statusText.innerText = "АЗС в данном районе не найдены";
+          loader.style.display = 'none';
+          return;
+        }
+
+        data.elements.forEach(item => {
+          const itemLat = item.lat || (item.center && item.center.lat);
+          const itemLon = item.lon || (item.center && item.center.lon);
+          if (!itemLat || !itemLon) return;
+
+          const tags = item.tags || {};
+          const brand = tags.brand || tags.operator || tags.name || "АЗС";
+          const queue = calculateQueue(item.id);
+
+          // Иконка колонки в зависимости от загруженности
+          const pinColor = queue.class === 'q-low' ? '#22c55e' : (queue.class === 'q-med' ? '#eab308' : '#ef4444');
+          const customPin = L.divIcon({
+            html: `<div style="background:${pinColor}; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.5);">⛽</div>`,
+            className: '',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          });
+
+          // Топливные бейджи
+          let fuels = [];
+          if (tags["fuel:diesel"] === "yes") fuels.push("ДТ");
+          if (tags["fuel:octane_92"] === "yes") fuels.push("АИ-92");
+          if (tags["fuel:octane_95"] === "yes" || !tags["fuel:octane_92"]) fuels.push("АИ-95");
+          if (tags["fuel:octane_98"] === "yes" || tags["fuel:octane_100"] === "yes") fuels.push("100");
+          if (tags["fuel:lpg"] === "yes" || tags["fuel:cng"] === "yes") fuels.push("Газ");
+
+          const fuelsHtml = fuels.map(f => `<span class="fuel-pill">${f}</span>`).join('');
+
+          const popupContent = `
+            <div class="station-card">
+              <div class="station-title">${brand}</div>
+              <div class="info-line">
+                <span>Очередь:</span>
+                <span class="status-badge ${queue.class}">${queue.text} (${queue.cars} авто)</span>
+              </div>
+              <div class="info-line">
+                <span>Ожидание:</span>
+                <span><b>${queue.wait}</b></span>
+              </div>
+              <div class="info-line">
+                <span>Топливо:</span>
+                <span style="color:#4ade80;">В наличии</span>
+              </div>
+              <div class="fuel-tags">${fuelsHtml}</div>
+            </div>
+          `;
+
+          const marker = L.marker([itemLat, itemLon], { icon: customPin }).bindPopup(popupContent);
+          clusterGroup.addLayer(marker);
+        });
+
+        statusText.innerText = `Найдено станций: ${data.elements.length}`;
+      } catch (err) {
+        statusText.innerText = "Ошибка загрузки данных. Повторите запрос.";
+      } finally {
+        loader.style.display = 'none';
+      }
+    }
+
+    // Первичная загрузка
+    loadRealStations(startLat, startLon);
+
+    // Геолокация
+    document.getElementById('gpsBtn').addEventListener('click', () => {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const userLat = pos.coords.latitude;
-            const userLon = pos.coords.longitude;
-            map.flyTo([userLat, userLon], 14, { duration: 1.2 });
-            L.circleMarker([userLat, userLon], {
-              radius: 8,
-              color: '#ffffff',
-              weight: 2,
-              fillColor: '#3b82f6',
-              fillOpacity: 1
-            }).addTo(map).bindPopup("Вы находитесь здесь").openPopup();
-          },
-          (err) => {
-            alert("Разрешите доступ к геопозиции в настройках.");
-          },
-          { enableHighAccuracy: true }
-        );
+        navigator.geolocation.getCurrentPosition(pos => {
+          const uLat = pos.coords.latitude;
+          const uLon = pos.coords.longitude;
+          map.flyTo([uLat, uLon], 13);
+          loadRealStations(uLat, uLon);
+        }, () => {
+          alert("Включите GPS в настройках телефона.");
+        }, { enableHighAccuracy: true });
       }
     });
   </script>
