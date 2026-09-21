@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Мониторинг АЗС — Живая карта</title>
 
-  <!-- Подключение Telegram WebApp SDK -->
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <!-- Leaflet CSS -->
@@ -31,7 +31,6 @@
       z-index: 1;
     }
 
-    /* Верхняя информационная плашка */
     .header-bar {
       position: absolute;
       top: 10px;
@@ -62,7 +61,6 @@
       margin-top: 2px;
     }
 
-    /* Кнопка геолокации */
     .locate-btn {
       position: absolute;
       bottom: 25px;
@@ -87,7 +85,6 @@
       background: #1d4ed8;
     }
 
-    /* Кастомные карточки всплывающих подсказок */
     .leaflet-popup-content-wrapper {
       background: #18181b !important;
       color: #f4f4f5 !important;
@@ -115,18 +112,9 @@
       display: flex;
       justify-content: space-between;
     }
-    .badge-ok {
-      color: #4ade80;
-      font-weight: 600;
-    }
-    .badge-warn {
-      color: #facc15;
-      font-weight: 600;
-    }
-    .badge-danger {
-      color: #f87171;
-      font-weight: 600;
-    }
+    .badge-ok { color: #4ade80; font-weight: 600; }
+    .badge-warn { color: #facc15; font-weight: 600; }
+    .badge-danger { color: #f87171; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -144,13 +132,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // Инициализация Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
     }
 
-    // Чтение параметров широты, долготы и зума из URL
     const urlParams = new URLSearchParams(window.location.search);
     const initialLat = parseFloat(urlParams.get('lat')) || 55.751244;
     const initialLon = parseFloat(urlParams.get('lon')) || 37.618423;
@@ -159,46 +145,35 @@
     document.getElementById('region-info').innerText = 
       `Координаты: ${initialLat.toFixed(4)}, ${initialLon.toFixed(4)}`;
 
-    // Инициализация карты
     const map = L.map('map', {
       zoomControl: false
     }).setView([initialLat, initialLon], initialZoom);
 
-    // Добавление контрола зума в правый нижний угол
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Свежие слои карт:
-    // 1. Быстрые и актуальные векторно-растровые тайлы Carto Voyager (со всеми новыми трассами)
-    const roadsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
+    // 1. Быстрый официальный сервер OpenStreetMap (БЕЗ ключей и авторизаций)
+    const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
     });
 
-    // 2. Спутниковые снимки высокого разрешения Esri (для проверки реального состояния дорог)
+    // 2. Спутниковые снимки высокого разрешения Esri (БЕЗ ключей)
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri',
-      maxZoom: 19
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
     });
 
-    // 3. Стандартный OpenStreetMap
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
-    });
+    // По умолчанию ставим OSM
+    osmLayer.addTo(map);
 
-    // Установка слоя по умолчанию
-    roadsLayer.addTo(map);
-
-    // Панель переключения слоев в правом верхнем углу
+    // Переключатель слоев вверху справа
     const baseLayers = {
-      "Актуальные дороги": roadsLayer,
-      "Спутник (Esri)": satelliteLayer,
-      "OpenStreetMap": osmLayer
+      "Схема дорог": osmLayer,
+      "Спутник (Esri)": satelliteLayer
     };
     L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
-    // Метка центра запроса
+    // Метка центра
     const centerIcon = L.divIcon({
       html: `<div style="background:#ef4444; width:14px; height:14px; border-radius:50%; border:3px solid #ffffff; box-shadow:0 0 12px rgba(239,68,68,0.9);"></div>`,
       className: '',
@@ -207,10 +182,10 @@
     });
     L.marker([initialLat, initialLon], { icon: centerIcon })
       .addTo(map)
-      .bindPopup("<b>Точка запроса</b><br>Ваш выбор или локация")
+      .bindPopup("<b>Точка запроса</b>")
       .openPopup();
 
-    // Генерация тестовых меток АЗС вокруг текущей точки с реалистичными данными
+    // Метки заправок
     const demoStations = [
       { name: "Лукойл", dLat: 0.008, dLon: 0.006, ai95: "В наличии", queue: "3 авто (≈ 5 мин)", status: "ok" },
       { name: "Газпромнефть", dLat: -0.007, dLon: 0.011, ai95: "В наличии", queue: "8 авто (≈ 15 мин)", status: "warn" },
@@ -243,7 +218,6 @@
         .bindPopup(popupHtml);
     });
 
-    // Обработка кнопки геолокации
     document.getElementById('locateBtn').addEventListener('click', () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -260,7 +234,7 @@
             }).addTo(map).bindPopup("Вы находитесь здесь").openPopup();
           },
           (err) => {
-            alert("Не удалось определить местоположение. Разрешите доступ к GPS в настройках.");
+            alert("Разрешите доступ к геопозиции в настройках.");
           },
           { enableHighAccuracy: true }
         );
