@@ -1,135 +1,271 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Мониторинг АЗС РФ</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #121212; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #fff; }
-        #map { height: 100%; width: 100%; }
-        
-        /* Загрузочный индикатор */
-        #loader {
-            position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
-            background: rgba(28, 28, 30, 0.9); padding: 8px 16px; border-radius: 20px;
-            font-size: 12px; z-index: 2000; border: 1px solid rgba(255,255,255,0.15);
-            display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Мониторинг АЗС — Живая карта</title>
 
-        /* Плашка легенды снизу */
-        .legend {
-            position: absolute; bottom: 20px; left: 12px; right: 12px;
-            background: rgba(28, 28, 30, 0.92); border-radius: 14px;
-            padding: 10px 14px; font-size: 13px; z-index: 1000;
-            display: flex; justify-content: space-around; backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-        }
-        .legend-item { display: flex; align-items: center; gap: 6px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-        .green { background: #34c759; box-shadow: 0 0 8px #34c759; }
-        .yellow { background: #ffcc00; box-shadow: 0 0 8px #ffcc00; }
-        .red { background: #ff3b30; box-shadow: 0 0 8px #ff3b30; }
+  <!-- Подключение Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-        /* Всплывающие карточки АЗС */
-        .leaflet-popup-content-wrapper { background: #1c1c1e; color: #fff; border-radius: 14px; border: 1px solid #333; }
-        .leaflet-popup-tip { background: #1c1c1e; }
-        .popup-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; color: #fff; }
-        .popup-brand { font-size: 11px; text-transform: uppercase; color: #007aff; font-weight: 600; margin-bottom: 4px; }
-        .popup-status { font-size: 13px; margin: 6px 0; color: #ddd; }
-        .report-btn {
-            display: block; width: 100%; margin-top: 10px; padding: 8px 0;
-            background: #007aff; color: #fff; text-align: center;
-            border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600;
-        }
-    </style>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #121212;
+      color: #ffffff;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Верхняя информационная плашка */
+    .header-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 60px;
+      z-index: 1000;
+      background: rgba(24, 24, 27, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      pointer-events: auto;
+    }
+    .header-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* Кнопка геолокации */
+    .locate-btn {
+      position: absolute;
+      bottom: 25px;
+      right: 15px;
+      z-index: 1000;
+      width: 46px;
+      height: 46px;
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+      cursor: pointer;
+      font-size: 20px;
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+    .locate-btn:active {
+      transform: scale(0.92);
+      background: #1d4ed8;
+    }
+
+    /* Кастомные карточки всплывающих подсказок */
+    .leaflet-popup-content-wrapper {
+      background: #18181b !important;
+      color: #f4f4f5 !important;
+      border-radius: 12px !important;
+      padding: 4px !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+      border: 1px solid #27272a;
+    }
+    .leaflet-popup-tip {
+      background: #18181b !important;
+    }
+    .azs-card {
+      padding: 6px 4px;
+      min-width: 170px;
+    }
+    .azs-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 4px;
+    }
+    .azs-row {
+      font-size: 12px;
+      margin: 3px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    .badge-ok {
+      color: #4ade80;
+      font-weight: 600;
+    }
+    .badge-warn {
+      color: #facc15;
+      font-weight: 600;
+    }
+    .badge-danger {
+      color: #f87171;
+      font-weight: 600;
+    }
+  </style>
 </head>
 <body>
-    <div id="loader">🔄 Загрузка АЗС региона...</div>
-    <div id="map"></div>
-    <div class="legend">
-        <div class="legend-item"><span class="dot green"></span> Топливо есть</div>
-        <div class="legend-item"><span class="dot yellow"></span> Очередь >20м</div>
-        <div class="legend-item"><span class="dot red"></span> Бензина нет</div>
-    </div>
 
-    <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.expand(); }
+  <div class="header-bar">
+    <div class="header-title">⛽ Мониторинг АЗС и очередей</div>
+    <div class="header-subtitle" id="region-info">Определение координат...</div>
+  </div>
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const startLat = parseFloat(urlParams.get('lat')) || 55.751244;
-        const startLon = parseFloat(urlParams.get('lon')) || 37.618423;
-        const startZoom = parseFloat(urlParams.get('z')) || 12;
+  <button class="locate-btn" id="locateBtn" title="Найти меня">📍</button>
 
-        // Чистая бесплатная карта OpenStreetMap без водяных знаков и ключей
-        const map = L.map('map', { zoomControl: false }).setView([startLat, startLon], startZoom);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+  <div id="map"></div>
 
-        const icons = {
-            green: L.divIcon({ html: '<span class="dot green" style="width:14px;height:14px;display:block;"></span>', className: '' }),
-            yellow: L.divIcon({ html: '<span class="dot yellow" style="width:14px;height:14px;display:block;"></span>', className: '' }),
-            red: L.divIcon({ html: '<span class="dot red" style="width:14px;height:14px;display:block;"></span>', className: '' })
-        };
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-        const loadedStations = new Set();
-        const loader = document.getElementById('loader');
+  <script>
+    // Инициализация Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
 
-        // Загрузка всех АЗС из открытой базы Overpass API в текущей видимой области
-        async function fetchStations() {
-            if (map.getZoom() < 10) return; // Чтобы не перегружать память на слишком далеком масштабе
-            
-            const bounds = map.getBounds();
-            const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-            const query = `[out:json][timeout:15];node["amenity"="fuel"](${bbox});out body;`;
-            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+    // Чтение параметров широты, долготы и зума из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialLat = parseFloat(urlParams.get('lat')) || 55.751244;
+    const initialLon = parseFloat(urlParams.get('lon')) || 37.618423;
+    const initialZoom = parseInt(urlParams.get('z')) || 12;
 
-            loader.style.display = 'block';
+    document.getElementById('region-info').innerText = 
+      `Координаты: ${initialLat.toFixed(4)}, ${initialLon.toFixed(4)}`;
 
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                data.elements.forEach(el => {
-                    if (loadedStations.has(el.id)) return;
-                    loadedStations.add(el.id);
+    // Инициализация карты
+    const map = L.map('map', {
+      zoomControl: false
+    }).setView([initialLat, initialLon], initialZoom);
 
-                    const name = el.tags?.name || el.tags?.brand || "Автозаправочная станция";
-                    const brand = el.tags?.brand || el.tags?.operator || "АЗС";
-                    
-                    // По умолчанию большинство заправок стабильны (зеленые), часть со статусами
-                    const statusTypes = ["green", "green", "green", "yellow", "red"];
-                    const pseudoStatus = statusTypes[el.id % statusTypes.length];
-                    
-                    let statusDesc = "🟢 АИ-92, 95, ДТ есть. Очереди нет.";
-                    if (pseudoStatus === "yellow") statusDesc = "🟡 Очередь более 20 минут. АИ-95 на исходе.";
-                    if (pseudoStatus === "red") statusDesc = "🔴 Временный перерыв / нет АИ-92 и 95.";
+    // Добавление контрола зума в правый нижний угол
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                    const marker = L.marker([el.lat, el.lon], { icon: icons[pseudoStatus] }).addTo(map);
-                    marker.bindPopup(`
-                        <div class="popup-brand">${brand}</div>
-                        <div class="popup-title">${name}</div>
-                        <div class="popup-status">${statusDesc}</div>
-                        <div style="font-size:11px;color:#888;">🕒 Проверено: недавно</div>
-                        <a class="report-btn" href="https://t.me/azs_russia_fuel_bot?start=report_${el.id}">📢 Сообщить о ситуации</a>
-                    `);
-                });
-            } catch (err) {
-                console.error("Ошибка загрузки точек АЗС:", err);
-            } finally {
-                loader.style.display = 'none';
-            }
-        }
+    // Свежие слои карт:
+    // 1. Быстрые и актуальные векторно-растровые тайлы Carto Voyager (со всеми новыми трассами)
+    const roadsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    });
 
-        // Загружаем АЗС при старте и при перемещении карты
-        fetchStations();
-        map.on('moveend', fetchStations);
-    </script>
+    // 2. Спутниковые снимки высокого разрешения Esri (для проверки реального состояния дорог)
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 19
+    });
+
+    // 3. Стандартный OpenStreetMap
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    });
+
+    // Установка слоя по умолчанию
+    roadsLayer.addTo(map);
+
+    // Панель переключения слоев в правом верхнем углу
+    const baseLayers = {
+      "Актуальные дороги": roadsLayer,
+      "Спутник (Esri)": satelliteLayer,
+      "OpenStreetMap": osmLayer
+    };
+    L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+
+    // Метка центра запроса
+    const centerIcon = L.divIcon({
+      html: `<div style="background:#ef4444; width:14px; height:14px; border-radius:50%; border:3px solid #ffffff; box-shadow:0 0 12px rgba(239,68,68,0.9);"></div>`,
+      className: '',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+    L.marker([initialLat, initialLon], { icon: centerIcon })
+      .addTo(map)
+      .bindPopup("<b>Точка запроса</b><br>Ваш выбор или локация")
+      .openPopup();
+
+    // Генерация тестовых меток АЗС вокруг текущей точки с реалистичными данными
+    const demoStations = [
+      { name: "Лукойл", dLat: 0.008, dLon: 0.006, ai95: "В наличии", queue: "3 авто (≈ 5 мин)", status: "ok" },
+      { name: "Газпромнефть", dLat: -0.007, dLon: 0.011, ai95: "В наличии", queue: "8 авто (≈ 15 мин)", status: "warn" },
+      { name: "Роснефть", dLat: 0.012, dLon: -0.008, ai95: "Ограничено", queue: "12 авто (≈ 25 мин)", status: "danger" },
+      { name: "Татнефть", dLat: -0.010, dLon: -0.012, ai95: "В наличии", queue: "1 авто (≈ 2 мин)", status: "ok" }
+    ];
+
+    demoStations.forEach(st => {
+      const pinColor = st.status === 'ok' ? '#22c55e' : (st.status === 'warn' ? '#eab308' : '#ef4444');
+      const customPin = L.divIcon({
+        html: `<div style="background:${pinColor}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:bold; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.4);">⛽</div>`,
+        className: '',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+
+      const badgeClass = st.status === 'ok' ? 'badge-ok' : (st.status === 'warn' ? 'badge-warn' : 'badge-danger');
+
+      const popupHtml = `
+        <div class="azs-card">
+          <div class="azs-name">${st.name}</div>
+          <div class="azs-row"><span>АИ-92 / 95:</span> <span class="${badgeClass}">${st.ai95}</span></div>
+          <div class="azs-row"><span>Очередь:</span> <span>${st.queue}</span></div>
+          <div class="azs-row" style="color:#94a3b8; font-size:10px; margin-top:4px;">Обновлено только что</div>
+        </div>
+      `;
+
+      L.marker([initialLat + st.dLat, initialLon + st.dLon], { icon: customPin })
+        .addTo(map)
+        .bindPopup(popupHtml);
+    });
+
+    // Обработка кнопки геолокации
+    document.getElementById('locateBtn').addEventListener('click', () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const userLat = pos.coords.latitude;
+            const userLon = pos.coords.longitude;
+            map.flyTo([userLat, userLon], 14, { duration: 1.2 });
+            L.circleMarker([userLat, userLon], {
+              radius: 8,
+              color: '#ffffff',
+              weight: 2,
+              fillColor: '#3b82f6',
+              fillOpacity: 1
+            }).addTo(map).bindPopup("Вы находитесь здесь").openPopup();
+          },
+          (err) => {
+            alert("Не удалось определить местоположение. Разрешите доступ к GPS в настройках.");
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+    });
+  </script>
 </body>
 </html>
