@@ -16,7 +16,7 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #ffffff;
+      background: #f4f4f7;
       overflow: hidden;
     }
     #map {
@@ -24,7 +24,7 @@
       height: 100vh;
       z-index: 1;
     }
-    /* Полное скрытие копирайта Leaflet */
+    /* ПОЛНОЕ СКРЫТИЕ LEAFLET */
     .leaflet-control-attribution {
       display: none !important;
     }
@@ -58,10 +58,10 @@
       background: #007aff;
       color: #fff;
     }
-    .custom-pin {
-      width: 36px;
-      height: 36px;
-      background: #28a745;
+    /* Точки со светофором */
+    .pin-status {
+      width: 34px;
+      height: 34px;
       border: 2px solid #fff;
       border-radius: 50%;
       box-shadow: 0 3px 8px rgba(0,0,0,0.35);
@@ -72,6 +72,10 @@
       font-weight: bold;
       font-size: 11px;
     }
+    .pin-green { background: #28a745; }
+    .pin-yellow { background: #ffc107; color: #000; }
+    .pin-red { background: #dc3545; }
+
     .station-popup {
       font-size: 13px;
       min-width: 220px;
@@ -86,20 +90,37 @@
     .popup-sub {
       color: #666;
       font-size: 11px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .badge-green { background: #e8f5e9; color: #2e7d32; }
+    .badge-yellow { background: #fffde7; color: #f57f17; }
+    .badge-red { background: #ffebee; color: #c62828; }
+
     .fuel-list {
       border-top: 1px solid #eee;
       padding-top: 6px;
+      margin-top: 4px;
     }
-    .fuel-row {
+    .fuel-item {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
+      font-size: 12px;
     }
-    .fuel-row span {
-      font-weight: 600;
-      color: #111;
+    .popup-footer {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #888;
+      display: flex;
+      justify-content: space-between;
     }
   </style>
 </head>
@@ -121,14 +142,33 @@
       window.Telegram.WebApp.expand();
     }
 
+    // Параметры из ссылки
+    const urlParams = new URLSearchParams(window.location.search);
+    const pLat = parseFloat(urlParams.get('lat'));
+    const pLon = parseFloat(urlParams.get('lon'));
+    const pZoom = parseInt(urlParams.get('zoom')) || 12;
+
+    // Центр по умолчанию: Москва (если город не передан в ссылке)
+    let initialLat = !isNaN(pLat) ? pLat : 55.751244;
+    let initialLon = !isNaN(pLon) ? pLon : 37.618423;
+
     const map = L.map('map', {
       attributionControl: false,
       zoomControl: false
-    }).setView([55.18688, 34.33363], 13);
+    }).setView([initialLat, initialLon], pZoom);
 
+    // Классическая светлая карта
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(map);
+
+    // Если координаты в ссылке не указаны — центрируемся по геолокации устройства
+    if (isNaN(pLat) && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+        loadStations();
+      }, () => {});
+    }
 
     let allStations = [];
     let markers = [];
@@ -137,13 +177,23 @@
     async function loadStations() {
       try {
         const b = map.getBounds();
-        const res = await fetch(`/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}`);
-        if (res.ok) {
+        const query = `min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}`;
+        
+        let res;
+        try {
+          res = await fetch(`/api/stations?${query}`);
+          if (!res.ok) throw new Error();
+        } catch (e) {
+          // Прямой защищенный запрос к твоему серверному домену
+          res = await fetch(`https://alexkrylov171.fvds.ru/api/stations?${query}`);
+        }
+
+        if (res && res.ok) {
           allStations = await res.json();
           renderStations();
         }
-      } catch (e) {
-        console.error('Ошибка загрузки станций:', e);
+      } catch (err) {
+        console.error('Ошибка получения станций:', err);
       }
     }
 
@@ -152,30 +202,35 @@
       markers = [];
 
       allStations.forEach(st => {
-        let fuelsDisplay = '';
-        if (Array.isArray(st.fuels)) {
-          fuelsDisplay = st.fuels.join(', ');
-        } else if (typeof st.fuels === 'string') {
-          fuelsDisplay = st.fuels;
+        const fuels = Array.isArray(st.fuels) ? st.fuels : [st.fuels || ''];
+        const fuelsStr = fuels.join(' ');
+
+        if (currentFilter !== 'all') {
+          if (!fuelsStr.includes(currentFilter)) return;
         }
 
-        if (currentFilter !== 'all' && !fuelsDisplay.includes(currentFilter)) {
-          return;
-        }
-
+        const pinClass = st.status === 'red' ? 'pin-red' : (st.status === 'yellow' ? 'pin-yellow' : 'pin-green');
         const icon = L.divIcon({
-          className: 'pin-wrap',
-          html: `<div class="custom-pin">АЗС</div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18]
+          className: 'custom-pin-wrap',
+          html: `<div class="pin-status ${pinClass}">АЗС</div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17]
         });
+
+        const fuelsHtml = fuels.map(f => `<div class="fuel-item"><span>${f}</span></div>`).join('');
+        const badgeClass = st.status === 'red' ? 'badge-red' : (st.status === 'yellow' ? 'badge-yellow' : 'badge-green');
 
         const popupHtml = `
           <div class="station-popup">
             <div class="popup-header">${st.name || 'АЗС'}</div>
             <div class="popup-sub">${st.brand ? st.brand + ' • ' : ''}${st.address || ''}</div>
+            <div class="status-badge ${badgeClass}">${st.status_text || 'Работает'}</div>
+            <div style="font-size:11px; margin-bottom:4px; color:#555;">⏳ ${st.queue_text || ''}</div>
             <div class="fuel-list">
-              <div class="fuel-row"><span>Цены:</span> <div>${fuelsDisplay || 'Данных нет'}</div></div>
+              ${fuelsHtml}
+            </div>
+            <div class="popup-footer">
+              <span>Обновлено: ${st.updated_ago || 'недавно'}</span>
             </div>
           </div>
         `;
