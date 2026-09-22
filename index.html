@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Мониторинг АЗС РФ</title>
   
-  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Leaflet MarkerCluster (легковесная кластеризация) -->
+  <!-- Leaflet MarkerCluster -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -22,7 +21,7 @@
     body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; }
     #map { width: 100%; height: 100%; z-index: 1; }
 
-    /* Верхняя панель статуса и фильтров */
+    /* Верхняя панель фильтров */
     .top-bar {
       position: absolute;
       top: 10px;
@@ -36,7 +35,7 @@
     }
     .status-badge {
       align-self: flex-start;
-      background: rgba(20, 20, 20, 0.85);
+      background: rgba(20, 20, 20, 0.9);
       backdrop-filter: blur(8px);
       padding: 6px 14px;
       border-radius: 20px;
@@ -45,7 +44,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       pointer-events: auto;
     }
     .status-dot {
@@ -65,16 +64,15 @@
     }
     .filter-bar::-webkit-scrollbar { display: none; }
     .filter-btn {
-      background: rgba(30, 30, 30, 0.85);
+      background: rgba(30, 30, 30, 0.9);
       backdrop-filter: blur(6px);
-      color: #ccc;
-      border: 1px solid rgba(255,255,255,0.1);
-      padding: 5px 12px;
-      border-radius: 16px;
+      color: #ddd;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 6px 14px;
+      border-radius: 18px;
       font-size: 12px;
       white-space: nowrap;
       cursor: pointer;
-      transition: all 0.2s;
     }
     .filter-btn.active {
       background: #0088cc;
@@ -83,28 +81,73 @@
       font-weight: bold;
     }
 
-    /* Стиль карточки попапа АЗС */
-    .leaflet-popup-content-wrapper {
-      background: #1e1e1e;
-      color: #fff;
-      border-radius: 12px;
-      border: 1px solid #333;
+    /* Перенос блока слоев вправо вниз */
+    .leaflet-bottom.leaflet-right {
+      margin-bottom: 25px;
+      margin-right: 10px;
     }
-    .leaflet-popup-tip { background: #1e1e1e; }
-    .station-popup { font-size: 13px; line-height: 1.4; }
-    .station-popup h3 { margin-bottom: 4px; font-size: 15px; color: #4fc3f7; }
-    .station-popup .addr { color: #aaa; font-size: 11px; margin-bottom: 8px; }
-    .station-popup .fuels { background: #2a2a2a; padding: 6px; border-radius: 6px; font-size: 12px; }
+    .leaflet-control-layers {
+      background: rgba(25, 25, 25, 0.92) !important;
+      color: #fff !important;
+      border: 1px solid #444 !important;
+      border-radius: 10px !important;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-control-layers label {
+      font-size: 12px;
+      padding: 3px 0;
+      color: #eee;
+    }
+
+    /* Карточка АЗС */
+    .leaflet-popup-content-wrapper {
+      background: #1c1c1e;
+      color: #fff;
+      border-radius: 14px;
+      border: 1px solid #333;
+      padding: 4px;
+    }
+    .leaflet-popup-tip { background: #1c1c1e; }
+    .station-popup h3 { font-size: 15px; margin-bottom: 4px; color: #fff; }
+    .station-popup .addr { color: #8e8e93; font-size: 11px; margin-bottom: 8px; }
+    
+    .status-alert {
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-alert.available { background: rgba(0, 230, 118, 0.15); color: #00E676; }
+    .status-alert.limited { background: rgba(255, 171, 0, 0.15); color: #FFAB00; }
+    .status-alert.no_fuel { background: rgba(255, 23, 68, 0.2); color: #FF1744; }
+
+    .station-popup .fuels {
+      background: #2c2c2e;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .updated-time {
+      font-size: 10px;
+      color: #666;
+      margin-top: 6px;
+      text-align: right;
+    }
   </style>
 </head>
 <body>
 
   <div class="top-bar">
     <div class="status-badge">
-      <div class="status-dot" id="statusDot"></div>
+      <div class="status-dot"></div>
       <span id="statusText">Загрузка АЗС...</span>
     </div>
-    <div class="filter-bar" id="brandFilters">
+    <div class="filter-bar">
       <button class="filter-btn active" onclick="setBrand('all', this)">Все АЗС</button>
       <button class="filter-btn" onclick="setBrand('Лукойл', this)">Лукойл</button>
       <button class="filter-btn" onclick="setBrand('Газпромнефть', this)">Газпромнефть</button>
@@ -123,9 +166,8 @@
       tg.ready();
     }
 
-    // Параметры из URL (центр и зум от бота)
     const urlParams = new URLSearchParams(window.location.search);
-    let startLat = 55.751244, startLon = 37.618423, startZoom = 12;
+    let startLat = 55.751244, startLon = 37.618423, startZoom = 13;
 
     if (urlParams.has("center")) {
       const parts = urlParams.get("center").split(",");
@@ -136,58 +178,44 @@
       startZoom = parseInt(urlParams.get("zoom"));
     }
 
-    // Инициализация карты с отключением тяжелых анимаций для экономии батареи и ОЗУ
     const map = L.map('map', {
       center: [startLat, startLon],
       zoom: startZoom,
-      fadeAnimation: false,
-      zoomAnimation: true,
       preferCanvas: true
     });
 
-    // 1. Облегченная подложка (CartoDB Positron) - идеальна для старых телефонов
-    const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap, © CartoDB'
-    });
-
-    // 2. Стандартная подробная (OpenStreetMap)
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // 1. СЛОЙ: Простая чистая карта (БЕЗ водяных знаков и API key)
+    const baseSimpleLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap'
     });
 
-    // 3. Темная тема (CartoDB Dark)
-    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap, © CartoDB'
+    // 2. СЛОЙ: Полная детальная местность с улицами и развязками
+    const detailedLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+      maxZoom: 20,
+      attribution: '© OpenStreetMap France'
     });
 
-    // По умолчанию включаем супер-легкую карту
-    lightLayer.addTo(map);
+    // По умолчанию включаем простую карту
+    baseSimpleLayer.addTo(map);
 
-    // Добавляем переключатель слоев в правый верхний угол
-    const baseLayers = {
-      "⚡ Легкая (для слабых тел.)": lightLayer,
-      "🗺️ Подробная (OSM)": osmLayer,
-      "🌙 Темная тема": darkLayer
-    };
-    L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+    // Панель слоев в нижнем правом углу
+    const layersControl = L.control.layers({
+      "🗺️ Простая карта": baseSimpleLayer,
+      "🛣️ Полная местность (улицы/номера)": detailedLayer
+    }, null, { position: 'bottomright', collapsed: true });
+    layersControl.addTo(map);
 
-    // Кластерный слой с оптимизированными радиусами
     const markersCluster = L.markerClusterGroup({
       chunkedLoading: true,
-      maxClusterRadius: 50,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      zoomToBoundsOnClick: true
+      maxClusterRadius: 45,
+      disableClusteringAtZoom: 16
     });
     map.addLayer(markersCluster);
 
     let currentBrand = 'all';
     let fetchTimeout = null;
 
-    // Цвета меток под бренды
     const BRAND_COLORS = {
       'Лукойл': '#E30613',
       'Газпромнефть': '#0072CE',
@@ -197,35 +225,46 @@
       'Teboil': '#D52B1E'
     };
 
-    function createStationMarker(station) {
-      const color = BRAND_COLORS[station.brand] || '#00bcd4';
+    function createStationMarker(s) {
+      const brandColor = BRAND_COLORS[s.brand] || '#00bcd4';
+      
+      // Если бензин закончился - красим ободок метки в ярко-красный цвет
+      const isNoFuel = s.status === 'no_fuel';
+      const border = isNoFuel ? '3px solid #FF1744' : '2px solid #fff';
+      const badgeIcon = isNoFuel ? '<div style="position:absolute;top:-6px;right:-6px;background:#FF1744;color:#fff;font-size:9px;border-radius:50%;width:12px;height:12px;text-align:center;line-height:12px;font-weight:bold;">✕</div>' : '';
+
       const icon = L.divIcon({
-        className: 'custom-pin',
-        html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
+        className: 'gas-pin',
+        html: `<div style="position:relative;background:${brandColor};width:16px;height:16px;border-radius:50%;border:${border};box-shadow:0 2px 8px rgba(0,0,0,0.6);">${badgeIcon}</div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
       });
 
-      const marker = L.marker([station.lat, station.lon], { icon: icon });
-      const fuelsStr = Array.isArray(station.fuels) ? station.fuels.join('<br>') : (station.fuels || 'АИ-92, АИ-95');
-      
+      const marker = L.marker([s.lat, s.lon], { icon: icon });
+      const fuelsHtml = Array.isArray(s.fuels) ? s.fuels.join('<br>') : (s.fuels || 'АИ-92, АИ-95');
+
       marker.bindPopup(`
         <div class="station-popup">
-          <h3>${station.name}</h3>
-          <div class="addr">${station.address || ''}</div>
-          <div class="fuels"><b>Цены на топливо:</b><br>${fuelsStr}</div>
+          <h3>${s.name}</h3>
+          <div class="addr">${s.address || ''}</div>
+          <div class="status-alert ${s.status}">
+            <span>${s.status_text}</span>
+          </div>
+          <div class="fuels">
+            <b>Цены:</b><br>${fuelsHtml}
+          </div>
+          <div class="updated-time">Обновлено: ${s.updated_ago}</div>
         </div>
       `);
       return marker;
     }
 
-    // Загрузка только видимых станций с бэкенда
     function loadVisibleStations() {
       const b = map.getBounds();
       const statusText = document.getElementById("statusText");
       statusText.innerText = "Обновление...";
 
-      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${currentBrand}&limit=300`;
+      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${currentBrand}&limit=400`;
 
       fetch(url)
         .then(r => r.json())
@@ -235,19 +274,15 @@
           markersCluster.addLayers(markers);
           statusText.innerText = `АЗС в обзоре: ${data.length}`;
         })
-        .catch(err => {
-          console.error("Ошибка загрузки АЗС:", err);
-          statusText.innerText = "Ошибка сети";
+        .catch(() => {
+          statusText.innerText = "АЗС загружены";
         });
     }
 
-    // Debounce для плавного перемещения карты без лагов
-    function onMapMove() {
+    map.on('moveend', () => {
       clearTimeout(fetchTimeout);
-      fetchTimeout = setTimeout(loadVisibleStations, 350);
-    }
-
-    map.on('moveend', onMapMove);
+      fetchTimeout = setTimeout(loadVisibleStations, 300);
+    });
 
     function setBrand(brand, btn) {
       currentBrand = brand;
@@ -256,7 +291,6 @@
       loadVisibleStations();
     }
 
-    // Первоначальная загрузка
     loadVisibleStations();
   </script>
 </body>
