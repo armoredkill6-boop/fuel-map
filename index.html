@@ -21,16 +21,16 @@
     body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; }
     #map { width: 100%; height: 100%; z-index: 1; }
 
-    /* НАМЕРТВО СКРЫВАЕМ ЛЮБЫЕ ВСТРОЕННЫЕ ПЛАШКИ LEAFLET */
+    /* ЖЕСТКОЕ УДАЛЕНИЕ ВСЕХ ПЛАШЕК И ССЫЛОК ВНИЗУ */
     .leaflet-control-attribution,
-    .leaflet-control-attribution a,
-    .leaflet-bottom.leaflet-right .leaflet-control-attribution {
+    .leaflet-bottom.leaflet-right,
+    .leaflet-bottom {
       display: none !important;
       visibility: hidden !important;
       opacity: 0 !important;
       pointer-events: none !important;
-      height: 0 !important;
-      width: 0 !important;
+      height: 0px !important;
+      width: 0px !important;
     }
 
     /* Верхняя панель фильтров */
@@ -47,7 +47,7 @@
     }
     .status-badge {
       align-self: flex-start;
-      background: rgba(20, 20, 22, 0.92);
+      background: rgba(20, 20, 22, 0.94);
       backdrop-filter: blur(10px);
       padding: 6px 14px;
       border-radius: 20px;
@@ -56,7 +56,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
       pointer-events: auto;
       border: 1px solid rgba(255,255,255,0.1);
     }
@@ -94,17 +94,17 @@
       font-weight: bold;
     }
 
-    /* Блок слоёв строго справа снизу */
-    .leaflet-bottom.leaflet-right {
-      margin-bottom: 20px;
-      margin-right: 12px;
+    /* Блок слоев перенесен в верхний правый угол под плашку */
+    .leaflet-top.leaflet-right {
+      top: 95px !important;
+      right: 12px !important;
     }
     .leaflet-control-layers {
       background: rgba(26, 26, 28, 0.95) !important;
       color: #fff !important;
       border: 1px solid #444 !important;
       border-radius: 10px !important;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
     }
     .leaflet-control-layers-base label {
       font-size: 12px;
@@ -187,21 +187,24 @@
       startZoom = parseInt(urlParams.get("zoom"));
     }
 
-    // Инициализация карты БЕЗ контроллера атрибуции
+    // Инициализация карты без контрола атрибуции
     const map = L.map('map', {
       center: [startLat, startLon],
       zoom: startZoom,
-      attributionControl: false, // Отключает блок снизу
+      attributionControl: false,
       preferCanvas: true
     });
 
-    // 1. Стандартный чистый слой карт
+    // Принудительное удаление контейнера через API
+    if (map.attributionControl) {
+      map.attributionControl.remove();
+    }
+
     const baseLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     });
 
-    // 2. Детальный дорожный слой (улицы, номера, развязки)
-    const roadsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const detailedLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     });
 
@@ -209,12 +212,17 @@
 
     L.control.layers({
       "🗺️ Стандартная карта": baseLayer,
-      "🛣️ Дорожная сеть и улицы": roadsLayer
-    }, null, { position: 'bottomright', collapsed: true }).addTo(map);
+      "🛣️ Полная дорожная сеть": detailedLayer
+    }, null, { position: 'topright', collapsed: true }).addTo(map);
+
+    // Удаление остаточных элементов атрибуции из DOM после рендера слоёв
+    setTimeout(() => {
+      document.querySelectorAll('.leaflet-control-attribution').forEach(el => el.remove());
+    }, 100);
 
     const markersCluster = L.markerClusterGroup({
       chunkedLoading: true,
-      maxClusterRadius: 40,
+      maxClusterRadius: 35,
       disableClusteringAtZoom: 15
     });
     map.addLayer(markersCluster);
@@ -268,7 +276,7 @@
       const statusText = document.getElementById("statusText");
       statusText.innerText = "Обновление...";
 
-      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${currentBrand}&limit=800`;
+      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${currentBrand}&limit=1200`;
 
       fetch(url)
         .then(r => r.json())
