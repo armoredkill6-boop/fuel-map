@@ -190,8 +190,8 @@
   <div id="map"></div>
 
   <script>
-    // Твой запущенный туннель localhost.run
-    const API_HOST = "https://e5cca57c966e3f.lhr.life";
+    // Твой актуальный активный адрес туннеля
+    const API_HOST = "https://9030657bc57de3.lhr.life";
 
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
@@ -253,7 +253,7 @@
       }
     }
 
-    // Подгрузка станций из твоей базы fuel_bot.db
+    // Подгрузка станций из базы fuel_bot.db
     async function loadLiveStations() {
       const c = map.getCenter();
       try {
@@ -318,7 +318,7 @@
 
     map.on('load', loadLiveStations);
 
-    // Автоматическая догрузка станций при смещении карты в другой район
+    // Автоматическая догрузка станций при перемещении карты
     map.on('moveend', () => {
       clearTimeout(moveTimeout);
       moveTimeout = setTimeout(loadLiveStations, 400);
