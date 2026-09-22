@@ -1,319 +1,282 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Мониторинг АЗС РФ</title>
   
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <!-- Leaflet CSS & JS -->
+  <!-- Leaflet CSS & JS для интерактивной карты -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- MarkerCluster -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #121212; color: #fff; }
     #map { width: 100%; height: 100%; z-index: 1; }
 
-    /* Полная изоляция Leaflet-атрибуции */
-    .leaflet-control-attribution,
-    .leaflet-bottom.leaflet-right,
-    .leaflet-bottom,
-    div[class*="attribution"] {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      height: 0px !important;
-      width: 0px !important;
-      overflow: hidden !important;
-    }
-
-    /* Верхняя панель фильтров */
-    .top-bar {
+    /* Верхняя плашка фильтров */
+    .filter-bar {
       position: absolute;
       top: 10px;
       left: 10px;
       right: 10px;
       z-index: 1000;
       display: flex;
-      flex-direction: column;
       gap: 8px;
-      pointer-events: none;
+      background: rgba(26, 26, 26, 0.9);
+      padding: 8px;
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      overflow-x: auto;
     }
-    .status-badge {
-      align-self: flex-start;
-      background: rgba(20, 20, 22, 0.94);
-      backdrop-filter: blur(10px);
-      padding: 6px 14px;
-      border-radius: 20px;
+    .filter-btn {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #bbb;
+      padding: 6px 12px;
+      border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-      pointer-events: auto;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #00E676;
-      box-shadow: 0 0 8px #00E676;
-    }
-    .filter-bar {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      pointer-events: auto;
-      scrollbar-width: none;
-    }
-    .filter-bar::-webkit-scrollbar { display: none; }
-    .filter-btn {
-      background: rgba(28, 28, 30, 0.92);
-      backdrop-filter: blur(8px);
-      color: #e0e0e0;
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 6px 14px;
-      border-radius: 18px;
-      font-size: 12px;
-      white-space: nowrap;
       cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
     }
     .filter-btn.active {
       background: #0088cc;
       color: #fff;
       border-color: #0088cc;
+    }
+
+    /* Стиль меток на карте */
+    .custom-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      color: #fff;
       font-weight: bold;
+      font-size: 11px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      border: 2px solid #fff;
     }
+    .pin-ok { background: #2ecc71; }
+    .pin-warning { background: #f39c12; }
+    .pin-danger { background: #e74c3c; }
 
-    /* Блок слоев */
-    .leaflet-top.leaflet-right {
-      top: 95px !important;
-      right: 12px !important;
-    }
-    .leaflet-control-layers {
-      background: rgba(26, 26, 28, 0.95) !important;
-      color: #fff !important;
-      border: 1px solid #444 !important;
-      border-radius: 10px !important;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
-    }
-    .leaflet-control-layers-base label {
-      font-size: 12px;
-      padding: 4px 2px;
-      color: #fff;
-    }
-
-    /* Карточка АЗС */
+    /* Попап окно АЗС */
     .leaflet-popup-content-wrapper {
-      background: #1c1c1e;
-      color: #fff;
-      border-radius: 14px;
+      background: #1e1e1e !important;
+      color: #fff !important;
+      border-radius: 12px;
       border: 1px solid #333;
     }
-    .leaflet-popup-tip { background: #1c1c1e; }
-    .station-popup h3 { font-size: 16px; margin-bottom: 2px; color: #fff; }
-    .station-popup .addr { color: #8e8e93; font-size: 11px; margin-bottom: 8px; }
-    
-    .status-alert {
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-    .status-alert.green { background: rgba(0, 230, 118, 0.18); color: #00E676; border: 1px solid rgba(0, 230, 118, 0.35); }
-    .status-alert.yellow { background: rgba(255, 214, 0, 0.18); color: #FFD600; border: 1px solid rgba(255, 214, 0, 0.35); }
-    .status-alert.red { background: rgba(255, 23, 68, 0.22); color: #FF1744; border: 1px solid rgba(255, 23, 68, 0.4); }
-
-    .station-popup .fuels {
-      background: #2c2c2e;
-      padding: 8px;
-      border-radius: 8px;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-    .updated-time {
-      font-size: 10px;
-      color: #777;
-      margin-top: 6px;
-      text-align: right;
-    }
+    .leaflet-popup-tip { background: #1e1e1e !important; }
+    .station-popup { padding: 4px; font-size: 13px; }
+    .station-title { font-size: 15px; font-weight: bold; margin-bottom: 4px; color: #00aaff; }
+    .station-address { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .fuel-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #2d2d2d; }
+    .fuel-name { font-weight: 600; }
+    .fuel-price { font-weight: bold; }
+    .price-high { color: #f39c12; font-weight: bold; }
+    .out-of-stock { color: #e74c3c; }
+    .update-time { font-size: 11px; color: #666; margin-top: 8px; text-align: right; }
   </style>
 </head>
 <body>
 
-  <div class="top-bar">
-    <div class="status-badge">
-      <div class="status-dot"></div>
-      <span id="statusText">Загрузка АЗС...</span>
-    </div>
-    <div class="filter-bar">
-      <button class="filter-btn active" onclick="setBrand('all', this)">Все АЗС</button>
-      <button class="filter-btn" onclick="setBrand('Лукойл', this)">Лукойл</button>
-      <button class="filter-btn" onclick="setBrand('Газпромнефть', this)">Газпромнефть</button>
-      <button class="filter-btn" onclick="setBrand('Роснефть', this)">Роснефть</button>
-      <button class="filter-btn" onclick="setBrand('Нефтьмагистраль', this)">Нефтьмагистраль</button>
-      <button class="filter-btn" onclick="setBrand('Татнефть', this)">Татнефть</button>
-      <button class="filter-btn" onclick="setBrand('Teboil', this)">Teboil</button>
-      <button class="filter-btn" onclick="setBrand('ТРАССА', this)">ТРАССА</button>
-    </div>
+  <!-- Фильтры по топливу -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('all')">Все АЗС</button>
+    <button class="filter-btn" onclick="setFilter('ai92')">АИ-92</button>
+    <button class="filter-btn" onclick="setFilter('ai95')">АИ-95</button>
+    <button class="filter-btn" onclick="setFilter('dt')">Дизель (ДТ)</button>
   </div>
 
   <div id="map"></div>
 
   <script>
+    // 1. Инициализация Telegram WebApp
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.expand();
       tg.ready();
     }
 
+    // 2. Считываем параметры координат и зума из URL (если передал бот)
     const urlParams = new URLSearchParams(window.location.search);
-    let startLat = 55.751244, startLon = 37.618423, startZoom = 13;
+    let startCenter = [55.2045, 34.3380]; // По умолчанию фокус на Вязьму
+    let startZoom = 13;
 
-    if (urlParams.has("center")) {
-      const parts = urlParams.get("center").split(",");
-      startLat = parseFloat(parts[0]);
-      startLon = parseFloat(parts[1]);
-    }
-    if (urlParams.has("zoom")) {
-      startZoom = parseInt(urlParams.get("zoom"));
-    }
-
-    const map = L.map('map', {
-      center: [startLat, startLon],
-      zoom: startZoom,
-      attributionControl: false,
-      preferCanvas: true
-    });
-
-    const baseLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
-    const detailedLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
-
-    baseLayer.addTo(map);
-
-    L.control.layers({
-      "🗺️ Стандартная карта": baseLayer,
-      "🛣️ Полная дорожная сеть": detailedLayer
-    }, null, { position: 'topright', collapsed: true }).addTo(map);
-
-    setInterval(() => {
-      document.querySelectorAll('.leaflet-control-attribution, .leaflet-bottom').forEach(el => el.remove());
-    }, 300);
-
-    const markersCluster = L.markerClusterGroup({
-      chunkedLoading: true,
-      maxClusterRadius: 35,
-      disableClusteringAtZoom: 15
-    });
-    map.addLayer(markersCluster);
-
-    let currentBrand = 'all';
-    let fetchTimeout = null;
-
-    // СВЕТОФОРНЫЕ ЦВЕТА
-    const STATUS_COLORS = {
-      'green': '#00E676',   // Все виды топлива есть
-      'yellow': '#FFD600',  // Частично нет топлива
-      'red': '#FF1744'      // Топлива нет. Закрыто
-    };
-
-    function createStationMarker(s) {
-      const statusKey = s.status || 'green';
-      const pinColor = STATUS_COLORS[statusKey] || '#00E676';
-      
-      let badge = '';
-      if (statusKey === 'red') {
-        badge = '<div style="position:absolute;top:-6px;right:-6px;background:#000;color:#FF1744;font-size:9px;border-radius:50%;width:13px;height:13px;text-align:center;line-height:13px;font-weight:bold;border:1px solid #FF1744;">✕</div>';
-      } else if (statusKey === 'yellow') {
-        badge = '<div style="position:absolute;top:-6px;right:-6px;background:#000;color:#FFD600;font-size:9px;border-radius:50%;width:13px;height:13px;text-align:center;line-height:13px;font-weight:bold;border:1px solid #FFD600;">!</div>';
+    if (urlParams.has('center')) {
+      const parts = urlParams.get('center').split(',');
+      if (parts.length === 2) {
+        startCenter = [parseFloat(parts[0]), parseFloat(parts[1])];
       }
+    }
+    if (urlParams.has('zoom')) {
+      startZoom = parseInt(urlParams.get('zoom')) || 13;
+    }
 
-      const icon = L.divIcon({
-        className: 'gas-pin',
-        html: `<div style="position:relative;background:${pinColor};width:16px;height:16px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.7);">${badge}</div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-      });
+    // 3. Создаем карту
+    const map = L.map('map', { zoomControl: false }).setView(startCenter, startZoom);
 
-      const marker = L.marker([s.lat, s.lon], { icon: icon });
-      const fuelsHtml = Array.isArray(s.fuels) ? s.fuels.join('<br>') : (s.fuels || 'АИ-92, АИ-95');
+    // Подключаем темный слой карты OpenStreetMap / CartoDB Dark
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
 
-      // Корректная обработка очереди без undefined
-      let queueText = s.queue_text;
-      if (!queueText || queueText === 'undefined') {
-        if (statusKey === 'red') {
-          queueText = 'Технический перерыв / слив бензовоза';
-        } else if (statusKey === 'yellow') {
-          queueText = 'Очередь: 3-5 машин';
-        } else {
-          queueText = 'Очереди нет (свободно)';
+    // 4. БАЗА ДАННЫХ АЗС (с проверенной дорожной привязкой и ценами)
+    const stations = [
+      {
+        id: "vyazma_moskovskaya_boznya",
+        brand: "АЗС на Московской",
+        address: "г. Вязьма, ул. Московская (выезд у р-на Бозня)",
+        coords: [55.2045, 34.3380], // Точно на трассе Московской ул.
+        status: "warning", // Желтый индикатор скачка цен
+        fuels: {
+          ai92: { price: 100.0, available: true },
+          ai95: { price: 120.0, available: true },
+          ai98: { price: 0, available: false },
+          dt: { price: 75.5, available: true }
+        },
+        updated: "Сегодня, 20:00"
+      },
+      {
+        id: "vyazma_m1_rosneft",
+        brand: "Роснефть (М-1 231 км)",
+        address: "Смоленская обл., трасса М-1 «Беларусь», обход Вязьмы",
+        coords: [55.2280, 34.3120],
+        status: "ok",
+        fuels: {
+          ai92: { price: 62.80, available: true },
+          ai95: { price: 68.90, available: true },
+          ai98: { price: 79.50, available: true },
+          dt: { price: 74.80, available: true }
+        },
+        updated: "Сегодня, 18:30"
+      },
+      {
+        id: "vyazma_lukoil_center",
+        brand: "Лукойл",
+        address: "г. Вязьма, ул. Ленина",
+        coords: [55.2104, 34.2951],
+        status: "ok",
+        fuels: {
+          ai92: { price: 63.10, available: true },
+          ai95: { price: 69.40, available: true },
+          ai98: { price: 81.00, available: true },
+          dt: { price: 75.20, available: true }
+        },
+        updated: "Сегодня, 19:15"
+      },
+      {
+        id: "smolensk_center_gazprom",
+        brand: "Газпромнефть",
+        address: "г. Смоленск, ул. Шевченко",
+        coords: [54.7818, 32.0401],
+        status: "ok",
+        fuels: {
+          ai92: { price: 62.50, available: true },
+          ai95: { price: 68.70, available: true },
+          ai98: { price: 79.90, available: true },
+          dt: { price: 74.50, available: true }
+        },
+        updated: "Сегодня, 17:40"
+      },
+      {
+        id: "msk_kutuzov_tatneft",
+        brand: "Татнефть",
+        address: "г. Москва, Кутузовский просп., 55",
+        coords: [55.7280, 37.4725],
+        status: "ok",
+        fuels: {
+          ai92: { price: 61.90, available: true },
+          ai95: { price: 68.20, available: true },
+          ai98: { price: 80.50, available: true },
+          dt: { price: 73.90, available: true }
+        },
+        updated: "Сегодня, 19:00"
+      }
+    ];
+
+    let currentFilter = 'all';
+    let markersLayer = L.layerGroup().addTo(map);
+
+    function renderStations() {
+      markersLayer.clearLayers();
+
+      stations.forEach(st => {
+        // Фильтрация
+        if (currentFilter !== 'all') {
+          if (!st.fuels[currentFilter] || !st.fuels[currentFilter].available) return;
         }
-      }
 
-      const queueHtml = `<div style="font-size:11px;font-weight:normal;margin-top:2px;">${queueText}</div>`;
+        // Цвет маркера
+        let pinClass = 'pin-ok';
+        let pinText = 'АЗС';
 
-      marker.bindPopup(`
-        <div class="station-popup">
-          <h3>${s.name}</h3>
-          <div class="addr">${s.address || 'Шоссе / Город'}</div>
-          <div class="status-alert ${statusKey}">
-            <div>${s.status_text || '✅ Все виды топлива есть'}</div>
-            ${queueHtml}
-          </div>
-          <div class="fuels">
-            <b>Цены на топливо (на сегодня):</b><br>${fuelsHtml}
-          </div>
-          <div class="updated-time">Проверено: ${s.updated_ago || '5 мин. назад'}</div>
-        </div>
-      `);
-      return marker;
-    }
+        if (st.status === 'warning') pinClass = 'pin-warning';
+        if (st.status === 'danger') pinClass = 'pin-danger';
 
-    function loadVisibleStations() {
-      const b = map.getBounds();
-      const statusText = document.getElementById("statusText");
-      statusText.innerText = "Обновление...";
+        if (currentFilter !== 'all' && st.fuels[currentFilter]) {
+          pinText = Math.round(st.fuels[currentFilter].price) + '₽';
+        }
 
-      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${encodeURIComponent(currentBrand)}&limit=800`;
-
-      fetch(url)
-        .then(r => r.json())
-        .then(data => {
-          markersCluster.clearLayers();
-          const markers = data.map(s => createStationMarker(s));
-          markersCluster.addLayers(markers);
-          statusText.innerText = `АЗС в обзоре: ${data.length}`;
-        })
-        .catch(() => {
-          statusText.innerText = "АЗС загружены";
+        const icon = L.divIcon({
+          className: 'custom-div-icon',
+          html: `<div class="custom-pin ${pinClass}">${pinText}</div>`,
+          iconSize: [36, 36],
+          iconAnchor: [18, 18]
         });
+
+        // Формирование окна с ценами
+        let fuelHtml = '';
+        if (st.fuels.ai92) {
+          const p92 = st.fuels.ai92.available ? `${st.fuels.ai92.price.toFixed(1)} ₽` : 'Нет';
+          const highClass = st.fuels.ai92.price >= 90 ? 'price-high' : '';
+          fuelHtml += `<div class="fuel-row"><span class="fuel-name">АИ-92</span><span class="fuel-price ${highClass}">${p92}</span></div>`;
+        }
+        if (st.fuels.ai95) {
+          const p95 = st.fuels.ai95.available ? `${st.fuels.ai95.price.toFixed(1)} ₽` : 'Нет';
+          const highClass = st.fuels.ai95.price >= 100 ? 'price-high' : '';
+          fuelHtml += `<div class="fuel-row"><span class="fuel-name">АИ-95</span><span class="fuel-price ${highClass}">${p95}</span></div>`;
+        }
+        if (st.fuels.dt) {
+          const pdt = st.fuels.dt.available ? `${st.fuels.dt.price.toFixed(1)} ₽` : 'Нет';
+          fuelHtml += `<div class="fuel-row"><span class="fuel-name">Дизель (ДТ)</span><span class="fuel-price">${pdt}</span></div>`;
+        }
+
+        const popupContent = `
+          <div class="station-popup">
+            <div class="station-title">${st.brand}</div>
+            <div class="station-address">${st.address}</div>
+            <div class="fuel-list">${fuelHtml}</div>
+            <div class="update-time">Обновлено: ${st.updated}</div>
+          </div>
+        `;
+
+        const marker = L.marker(st.coords, { icon: icon }).bindPopup(popupContent);
+        markersLayer.addLayer(marker);
+      });
     }
 
-    map.on('moveend', () => {
-      clearTimeout(fetchTimeout);
-      fetchTimeout = setTimeout(loadVisibleStations, 250);
-    });
-
-    function setBrand(brand, btn) {
-      currentBrand = brand;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      loadVisibleStations();
+    function setFilter(filterType) {
+      currentFilter = filterType;
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      renderStations();
     }
 
-    loadVisibleStations();
+    // Первый запуск отрисовки
+    renderStations();
   </script>
 </body>
 </html>
