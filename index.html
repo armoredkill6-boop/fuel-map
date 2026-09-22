@@ -16,7 +16,7 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f4f4f7;
+      background: #ffffff;
       overflow: hidden;
     }
     #map {
@@ -24,7 +24,7 @@
       height: 100vh;
       z-index: 1;
     }
-    /* СКРЫВАЕМ НАДПИСЬ LEAFLET */
+    /* Полное скрытие копирайта Leaflet */
     .leaflet-control-attribution {
       display: none !important;
     }
@@ -59,8 +59,8 @@
       color: #fff;
     }
     .custom-pin {
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       background: #28a745;
       border: 2px solid #fff;
       border-radius: 50%;
@@ -109,7 +109,7 @@
     <button class="filter-btn active" onclick="setFilter('all')">Все АЗС</button>
     <button class="filter-btn" onclick="setFilter('92')">АИ-92</button>
     <button class="filter-btn" onclick="setFilter('95')">АИ-95</button>
-    <button class="filter-btn" onclick="setFilter('98')">АИ-98/100</button>
+    <button class="filter-btn" onclick="setFilter('100')">АИ-100</button>
     <button class="filter-btn" onclick="setFilter('ДТ')">ДТ</button>
   </div>
 
@@ -121,33 +121,14 @@
       window.Telegram.WebApp.expand();
     }
 
-    // Считываем параметры из URL (lat, lon, zoom)
-    const urlParams = new URLSearchParams(window.location.search);
-    const paramLat = parseFloat(urlParams.get('lat'));
-    const paramLon = parseFloat(urlParams.get('lon'));
-    const paramZoom = parseInt(urlParams.get('zoom')) || 12;
-
-    // Если координаты переданы из меню бота — ставим их, иначе Москва по умолчанию (а не Вязьма)
-    const startLat = !isNaN(paramLat) ? paramLat : 55.751244;
-    const startLon = !isNaN(paramLon) ? paramLon : 37.618423;
-
     const map = L.map('map', {
       attributionControl: false,
       zoomControl: false
-    }).setView([startLat, startLon], paramZoom);
+    }).setView([55.18688, 34.33363], 13);
 
-    // Классическая светлая карта
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(map);
-
-    // Если координаты не были переданы вручную — пробуем взять геопозицию устройства
-    if (isNaN(paramLat) && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        map.setView([pos.coords.latitude, pos.coords.longitude], 12);
-        loadStations();
-      }, () => {});
-    }
 
     let allStations = [];
     let markers = [];
@@ -156,17 +137,8 @@
     async function loadStations() {
       try {
         const b = map.getBounds();
-        const url = `/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}`;
-        
-        let res;
-        try {
-          res = await fetch(url);
-          if (!res.ok) throw new Error();
-        } catch (err) {
-          res = await fetch(`http://62.109.4.17/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}`);
-        }
-
-        if (res && res.ok) {
+        const res = await fetch(`/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}`);
+        if (res.ok) {
           allStations = await res.json();
           renderStations();
         }
@@ -187,16 +159,15 @@
           fuelsDisplay = st.fuels;
         }
 
-        if (currentFilter !== 'all') {
-          if (currentFilter === '98' && !fuelsDisplay.includes('100') && !fuelsDisplay.includes('98')) return;
-          if (currentFilter !== '98' && !fuelsDisplay.includes(currentFilter)) return;
+        if (currentFilter !== 'all' && !fuelsDisplay.includes(currentFilter)) {
+          return;
         }
 
         const icon = L.divIcon({
           className: 'pin-wrap',
           html: `<div class="custom-pin">АЗС</div>`,
-          iconSize: [38, 38],
-          iconAnchor: [19, 19]
+          iconSize: [36, 36],
+          iconAnchor: [18, 18]
         });
 
         const popupHtml = `
