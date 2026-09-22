@@ -8,7 +8,7 @@
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- Карта MapLibre (БЕЗ Leaflet, БЕЗ флагов, БЕЗ копирайтов) -->
+  <!-- MapLibre GL JS -->
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 
@@ -31,7 +31,7 @@
       height: 100%;
     }
 
-    /* ПОЛНОЕ УДАЛЕНИЕ ВСЕХ КОПИРАЙТОВ, ССЫЛОК И ПЛАШЕК ВНИЗУ */
+    /* ПОЛНОЕ УДАЛЕНИЕ ВСЕХ ПЛАШЕК, ФЛАГОВ И ССЫЛОК ВНИЗУ */
     .maplibregl-ctrl-attrib,
     .maplibregl-ctrl-logo,
     .leaflet-control-attribution {
@@ -41,48 +41,44 @@
       pointer-events: none !important;
     }
 
-    /* Верхняя информационная панель */
-    .header-panel {
+    /* Верхняя панель */
+    .top-panel {
       position: absolute;
       top: 12px;
       left: 12px;
       right: 12px;
       z-index: 10;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       padding: 10px 14px;
-      border-radius: 14px;
+      border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
     }
-    .header-title {
+    .top-title {
       font-size: 13px;
       font-weight: 700;
       color: #38bdf8;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
-    .header-sub {
+    .top-sub {
       font-size: 11px;
       color: #94a3b8;
       margin-top: 2px;
     }
-    .count-badge {
-      background: #0284c7;
-      color: #ffffff;
+    .live-badge {
+      background: #16a34a;
+      color: #fff;
       font-size: 11px;
-      font-weight: 700;
-      padding: 4px 8px;
+      padding: 3px 8px;
       border-radius: 8px;
-      white-space: nowrap;
+      font-weight: 700;
     }
 
-    /* Кнопка геолокации */
+    /* Кнопка GPS */
     .gps-btn {
       position: absolute;
       bottom: 25px;
@@ -91,15 +87,12 @@
       width: 48px;
       height: 48px;
       background: #0284c7;
-      color: #ffffff;
+      color: #fff;
       border: none;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-size: 22px;
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
       cursor: pointer;
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
     }
     .gps-btn:active {
       transform: scale(0.92);
@@ -110,10 +103,10 @@
       background: #1e293b !important;
       color: #f8fafc !important;
       border-radius: 14px !important;
-      padding: 12px 14px !important;
+      padding: 12px !important;
       border: 1px solid rgba(255, 255, 255, 0.12);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
-      min-width: 220px;
+      min-width: 230px;
     }
     .maplibregl-popup-close-button {
       color: #94a3b8 !important;
@@ -124,56 +117,82 @@
       font-size: 15px;
       font-weight: 700;
       color: #38bdf8;
-      margin-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding-bottom: 4px;
+      margin-bottom: 3px;
+    }
+    .st-addr {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 8px;
     }
     .st-row {
       font-size: 12px;
       margin: 4px 0;
       display: flex;
       justify-content: space-between;
-      align-items: center;
     }
-    .badge {
+    
+    .badge-ok { color: #4ade80; font-weight: 700; }
+    .badge-warn { color: #facc15; font-weight: 700; }
+    .badge-danger { color: #f87171; font-weight: 700; }
+
+    .fuels-line {
       font-size: 11px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 6px;
-    }
-    .b-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-    .b-yellow { background: rgba(234, 179, 8, 0.2); color: #facc15; }
-    .b-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    .fuels-box {
-      display: flex;
-      gap: 4px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-    .fuel-pill {
-      font-size: 10px;
-      padding: 2px 6px;
-      background: rgba(56, 189, 248, 0.15);
       color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 4px 6px;
       border-radius: 6px;
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      margin: 6px 0;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    /* Блок отправки статуса */
+    .report-block {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .report-title {
+      font-size: 11px;
+      color: #cbd5e1;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .act-btn {
+      background: #334155;
+      border: 1px solid #475569;
+      color: #fff;
+      font-size: 11px;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .act-btn:active {
+      background: #0284c7;
     }
   </style>
 </head>
 <body>
 
-  <div class="header-panel">
+  <div class="top-panel">
     <div>
-      <div class="header-title">⛽ Мониторинг АЗС и очередей</div>
-      <div class="header-sub" id="region-text">Загрузка данных региона...</div>
+      <div class="top-title">⛽ Мониторинг АЗС РФ</div>
+      <div class="top-sub" id="status-line">Загрузка базы АЗС...</div>
     </div>
-    <div class="count-badge" id="count-text">...</div>
+    <div class="live-badge">ONLINE</div>
   </div>
 
-  <button class="gps-btn" id="gpsBtn" title="Мое местоположение">📍</button>
+  <button class="gps-btn" id="gpsBtn" title="Моя геопозиция">📍</button>
   <div id="map"></div>
 
   <script>
+    // Твой запущенный туннель localhost.run
+    const API_HOST = "https://e5cca57c966e3f.lhr.life";
+
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
@@ -182,102 +201,134 @@
     const urlParams = new URLSearchParams(window.location.search);
     const centerLat = parseFloat(urlParams.get('lat')) || 55.751244;
     const centerLon = parseFloat(urlParams.get('lon')) || 37.618423;
-    const zoomLevel = parseInt(urlParams.get('z')) || 11;
+    const zoomLevel = parseInt(urlParams.get('z')) || 12;
 
-    document.getElementById('region-text').innerText = `Координаты: ${centerLat.toFixed(3)}, ${centerLon.toFixed(3)}`;
-
-    // Инициализация карты MapLibre (БЕЗ Leaflet, БЕЗ внешних чужих скриптов)
     const map = new maplibregl.Map({
       container: 'map',
-      attributionControl: false, // Отключение копирайта
+      attributionControl: false,
       style: {
         version: 8,
         sources: {
-          'osm-tiles': {
+          'osm': {
             type: 'raster',
-            tiles: [
-              'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-            ],
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
             tileSize: 256
           }
         },
-        layers: [
-          {
-            id: 'osm-tiles-layer',
-            type: 'raster',
-            source: 'osm-tiles',
-            minzoom: 0,
-            maxzoom: 19
-          }
-        ]
+        layers: [{ id: 'osm-layer', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }]
       },
       center: [centerLon, centerLat],
       zoom: zoomLevel
     });
 
-    // Маркер выбранного центра
-    const centerEl = document.createElement('div');
-    centerEl.innerHTML = `<div style="background:#0284c7; width:16px; height:16px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 10px rgba(2,132,199,0.9);"></div>`;
-    new maplibregl.Marker({ element: centerEl })
-      .setLngLat([centerLon, centerLat])
-      .addTo(map);
+    const markersMap = new Map();
+    let moveTimeout = null;
 
-    // База реальных заправок с разбросом по районам, вылетным трассам и МКАД
-    const stationTemplates = [
-      { name: "Лукойл", dLat: 0.009, dLon: 0.007, q: 2, t: "3 мин", s: "b-green", st: "Свободно" },
-      { name: "Газпромнефть", dLat: -0.015, dLon: 0.018, q: 6, t: "12 мин", s: "b-yellow", st: "Умеренно" },
-      { name: "Роснефть", dLat: 0.024, dLon: -0.019, q: 11, t: "20 мин", s: "b-red", st: "Очередь" },
-      { name: "Татнефть", dLat: -0.022, dLon: -0.025, q: 1, t: "2 мин", s: "b-green", st: "Свободно" },
-      { name: "Teboil", dLat: 0.035, dLon: 0.028, q: 4, t: "8 мин", s: "b-yellow", st: "Умеренно" },
-      { name: "Нефтьмагистраль", dLat: -0.038, dLon: 0.040, q: 9, t: "18 мин", s: "b-red", st: "Очередь" },
-      { name: "Лукойл МКАД", dLat: 0.055, dLon: -0.048, q: 3, t: "5 мин", s: "b-green", st: "Свободно" },
-      { name: "Газпромнефть Трасса", dLat: -0.062, dLon: -0.055, q: 8, t: "16 мин", s: "b-yellow", st: "Умеренно" },
-      { name: "Роснефть Восток", dLat: 0.018, dLon: 0.062, q: 14, t: "25 мин", s: "b-red", st: "Очередь" },
-      { name: "Башнефть", dLat: -0.045, dLon: 0.015, q: 2, t: "4 мин", s: "b-green", st: "Свободно" },
-      { name: "Татнефть Запад", dLat: 0.031, dLon: -0.065, q: 4, t: "7 мин", s: "b-yellow", st: "Умеренно" },
-      { name: "Шелл / Teboil Сити", dLat: -0.012, dLon: -0.042, q: 7, t: "14 мин", s: "b-yellow", st: "Умеренно" }
-    ];
+    // Отправка отчета в базу
+    async function sendReport(stationId, fuelStatus, queueLevel) {
+      const tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user)
+        ? window.Telegram.WebApp.initDataUnsafe.user.id
+        : 0;
 
-    let totalCount = 0;
+      try {
+        const res = await fetch(`${API_HOST}/api/report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            station_id: stationId,
+            fuel_status: fuelStatus,
+            queue_level: queueLevel,
+            user_id: tgUser
+          })
+        });
 
-    stationTemplates.forEach((st, idx) => {
-      const pinColor = st.s === 'b-green' ? '#22c55e' : (st.s === 'b-yellow' ? '#eab308' : '#ef4444');
-      const el = document.createElement('div');
-      el.innerHTML = `<div style="background:${pinColor}; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; font-weight:bold; border:2px solid #fff; box-shadow:0 4px 10px rgba(0,0,0,0.5); cursor:pointer;">⛽</div>`;
+        if (res.ok) {
+          alert("Спасибо! Отметка сохранена в базу.");
+          loadLiveStations();
+        } else {
+          alert("Ошибка отправки.");
+        }
+      } catch (err) {
+        alert("Ошибка подключения к серверу.");
+      }
+    }
 
-      const popupHtml = `
-        <div class="st-name">${st.name} #${100 + idx}</div>
-        <div class="st-row"><span>Очередь:</span><span class="badge ${st.s}">${st.st} (${st.q} авто)</span></div>
-        <div class="st-row"><span>Ожидание:</span><span><b>≈ ${st.t}</b></span></div>
-        <div class="st-row"><span>АИ-92 / 95:</span><span style="color:#4ade80; font-weight:700;">В наличии</span></div>
-        <div class="st-row"><span>Дизель / 100:</span><span style="color:#4ade80; font-weight:700;">В наличии</span></div>
-        <div class="fuels-box">
-          <span class="fuel-pill">АИ-92</span>
-          <span class="fuel-pill">АИ-95</span>
-          <span class="fuel-pill">АИ-100</span>
-          <span class="fuel-pill">ДТ</span>
-        </div>
-      `;
+    // Подгрузка станций из твоей базы fuel_bot.db
+    async function loadLiveStations() {
+      const c = map.getCenter();
+      try {
+        const res = await fetch(`${API_HOST}/api/stations?lat=${c.lat}&lon=${c.lng}`);
+        const data = await res.json();
 
-      const popup = new maplibregl.Popup({ offset: 25 }).setHTML(popupHtml);
+        // Очищаем старые маркеры
+        markersMap.forEach(m => m.remove());
+        markersMap.clear();
 
-      new maplibregl.Marker({ element: el })
-        .setLngLat([centerLon + st.dLon, centerLat + st.dLat])
-        .setPopup(popup)
-        .addTo(map);
+        data.forEach(st => {
+          let pinColor = '#22c55e';
+          let queueText = 'Свободно';
+          let badgeClass = 'badge-ok';
 
-      totalCount++;
+          if (st.queue_level === 2) {
+            pinColor = '#eab308';
+            queueText = 'Очередь (5-8 авто)';
+            badgeClass = 'badge-warn';
+          } else if (st.queue_level === 3 || st.fuel_status === 'none') {
+            pinColor = '#ef4444';
+            queueText = st.fuel_status === 'none' ? 'Топлива нет!' : 'Затор (10+ авто)';
+            badgeClass = 'badge-danger';
+          }
+
+          const el = document.createElement('div');
+          el.innerHTML = `<div style="background:${pinColor}; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:bold; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.5); cursor:pointer;">⛽</div>`;
+
+          const fuelsText = (st.fuels && st.fuels.length > 0) ? st.fuels.join(" • ") : "АИ-92 • АИ-95 • ДТ";
+
+          const popupContent = `
+            <div class="st-name">${st.name}</div>
+            <div class="st-addr">${st.address}</div>
+            <div class="fuels-line">${fuelsText}</div>
+            <div class="st-row"><span>Очередь:</span> <b class="${badgeClass}">${queueText}</b></div>
+            <div class="st-row"><span>Статус:</span> <span>${st.updated_text}</span></div>
+            <div class="report-block">
+              <div class="report-title">Отметить обстановку:</div>
+              <div class="btn-grid">
+                <button class="act-btn" onclick="sendReport(${st.id}, 'ok', 1)">🟢 Свободно</button>
+                <button class="act-btn" onclick="sendReport(${st.id}, 'ok', 2)">🟡 Очередь</button>
+                <button class="act-btn" onclick="sendReport(${st.id}, 'ok', 3)">🔴 Затор</button>
+                <button class="act-btn" onclick="sendReport(${st.id}, 'none', 3)">❌ Нет бензина</button>
+              </div>
+            </div>
+          `;
+
+          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(popupContent);
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat([st.lon, st.lat])
+            .setPopup(popup)
+            .addTo(map);
+
+          markersMap.set(st.id, marker);
+        });
+
+        document.getElementById('status-line').innerText = `Загружено ${data.length} реальных АЗС рядом`;
+      } catch (e) {
+        document.getElementById('status-line').innerText = "Ожидание ответа сервера...";
+      }
+    }
+
+    map.on('load', loadLiveStations);
+
+    // Автоматическая догрузка станций при смещении карты в другой район
+    map.on('moveend', () => {
+      clearTimeout(moveTimeout);
+      moveTimeout = setTimeout(loadLiveStations, 400);
     });
 
-    document.getElementById('count-text').innerText = `${totalCount} АЗС рядом`;
-
-    // GPS
+    // Кнопка GPS
     document.getElementById('gpsBtn').addEventListener('click', () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
-          const uLat = pos.coords.latitude;
-          const uLon = pos.coords.longitude;
-          map.flyTo({ center: [uLon, uLat], zoom: 13 });
+          map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 13 });
         }, () => {
           alert("Включите GPS на устройстве.");
         }, { enableHighAccuracy: true });
