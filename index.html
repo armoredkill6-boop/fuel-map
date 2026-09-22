@@ -2,217 +2,231 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Мониторинг АЗС</title>
+  
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
-    html, body {
-      width: 100%;
-      height: 100%;
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #f4f4f7;
+      background: #0f172a;
+      color: #f8fafc;
     }
     #map {
       width: 100%;
       height: 100%;
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
       z-index: 1;
     }
-    .leaflet-control-attribution {
-      display: none !important;
-    }
-
-    /* Верхний бейдж "АЗС в обзоре" */
-    .counter-badge {
+    
+    /* Верхняя панель управления */
+    .top-bar {
       position: absolute;
-      top: 14px;
-      left: 14px;
-      z-index: 1000;
-      background: rgba(18, 18, 18, 0.88);
-      backdrop-filter: blur(8px);
-      color: #fff;
-      padding: 7px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 700;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      pointer-events: none;
-    }
-    .counter-dot {
-      width: 8px;
-      height: 8px;
-      background: #28a745;
-      border-radius: 50%;
-      box-shadow: 0 0 6px #28a745;
-    }
-
-    /* Верхняя панель фильтрации по брендам */
-    .filter-bar {
-      position: absolute;
-      top: 54px;
+      top: 12px;
       left: 12px;
       right: 12px;
       z-index: 1000;
       display: flex;
+      flex-direction: column;
       gap: 8px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .filter-bar::-webkit-scrollbar {
-      display: none;
-    }
-    .filter-btn {
-      flex: 1;
-      min-width: 80px;
-      padding: 9px 12px;
-      font-size: 13px;
-      font-weight: 700;
-      border: none;
-      border-radius: 12px;
-      background: rgba(28, 28, 30, 0.85);
-      backdrop-filter: blur(10px);
-      color: #ffffff;
-      cursor: pointer;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-    .filter-btn.active {
-      background: #007aff !important;
-      color: #ffffff !important;
+      pointer-events: none;
     }
 
-    /* Кнопка переключения слоев справа */
-    .layer-toggle-btn {
-      position: absolute;
-      top: 110px;
-      right: 14px;
-      z-index: 1000;
-      width: 44px;
-      height: 44px;
-      background: rgba(28, 28, 30, 0.88);
+    .counter-badge {
+      align-self: flex-start;
+      background: rgba(15, 23, 42, 0.85);
       backdrop-filter: blur(8px);
-      border-radius: 12px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #38bdf8;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: auto;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    /* Горизонтальный скролл фильтров */
+    .filter-scroll {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      pointer-events: auto;
+      scrollbar-width: none;
+    }
+    .filter-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .filter-chip {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+    .filter-chip.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+      font-weight: 600;
+    }
+
+    /* Маркеры АЗС на Leaflet */
+    .custom-station-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-    .layer-toggle-btn svg {
-      width: 22px;
-      height: 22px;
-      fill: #ffffff;
-    }
-
-    /* Оригинальные маркеры со светофором */
-    .donut-pin {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 3.5px solid #ffffff;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      border: 2px solid #ffffff;
       transition: transform 0.15s ease;
     }
-    .donut-green { background: #28a745; }
-    .donut-yellow { background: #ffc107; }
-    .donut-red { background: #dc3545; }
-
-    /* Попап заправки */
-    .station-popup {
-      font-size: 13px;
-      min-width: 230px;
-      line-height: 1.4;
+    .custom-station-pin:hover {
+      transform: scale(1.15);
     }
-    .popup-header {
-      font-weight: 800;
+    .pin-green {
+      background: radial-gradient(circle at 30% 30%, #4ade80, #16a34a);
+    }
+    .pin-yellow {
+      background: radial-gradient(circle at 30% 30%, #facc15, #ca8a04);
+    }
+    .pin-red {
+      background: radial-gradient(circle at 30% 30%, #f87171, #dc2626);
+    }
+    .custom-station-pin svg {
+      width: 16px;
+      height: 16px;
+      fill: #ffffff;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+    }
+
+    /* Карточка АЗС (Popup) */
+    .leaflet-popup-content-wrapper {
+      background: rgba(15, 23, 42, 0.95) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      border-radius: 16px !important;
+      color: #f8fafc !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+      padding: 0 !important;
+      overflow: hidden;
+    }
+    .leaflet-popup-content {
+      margin: 14px 16px !important;
+      line-height: 1.4 !important;
+    }
+    .leaflet-popup-tip {
+      background: rgba(15, 23, 42, 0.95) !important;
+    }
+    .popup-title {
       font-size: 15px;
-      margin-bottom: 2px;
-      color: #111;
-    }
-    .popup-sub {
-      color: #666;
-      font-size: 11px;
-      margin-bottom: 6px;
-    }
-    .status-badge {
-      font-size: 11px;
       font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 6px;
-      display: inline-block;
-      margin-bottom: 6px;
+      color: #ffffff;
+      margin-bottom: 2px;
     }
-    .badge-green { background: #e8f5e9; color: #2e7d32; }
-    .badge-yellow { background: #fffde7; color: #f57f17; }
-    .badge-red { background: #ffebee; color: #c62828; }
-
-    .fuel-list {
-      border-top: 1px solid #eee;
-      padding-top: 6px;
-      margin-top: 4px;
+    .popup-address {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 10px;
     }
-    .fuel-item {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3px;
+    .popup-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
       font-size: 12px;
-    }
-    .fuel-type {
       font-weight: 600;
-      color: #444;
+      margin-bottom: 10px;
     }
-    .fuel-price {
-      font-weight: 800;
-      color: #111;
+    .popup-badge.green {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      border: 1px solid rgba(74, 222, 128, 0.3);
     }
-    .popup-footer {
-      margin-top: 8px;
-      font-size: 10px;
-      color: #888;
+    .popup-badge.yellow {
+      background: rgba(234, 179, 8, 0.2);
+      color: #fde047;
+      border: 1px solid rgba(253, 224, 71, 0.3);
+    }
+    .popup-badge.red {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(252, 165, 165, 0.3);
+    }
+    .fuels-grid {
       display: flex;
-      justify-content: space-between;
-      border-top: 1px dashed #eee;
-      padding-top: 4px;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .fuel-tag {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #e2e8f0;
+    }
+    .popup-time {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 6px;
+      text-align: right;
     }
   </style>
 </head>
 <body>
 
-  <!-- Бейдж с точным числом АЗС на экране -->
-  <div class="counter-badge">
-    <div class="counter-dot"></div>
-    <span id="counterText">АЗС в обзоре: 0</span>
-  </div>
-
-  <!-- Фильтры по брендам, как на первом скрине -->
-  <div class="filter-bar">
-    <button class="filter-btn active" onclick="setBrand('all')">Все АЗС</button>
-    <button class="filter-btn" onclick="setBrand('Лукойл')">Лукойл</button>
-    <button class="filter-btn" onclick="setBrand('Газпромнефть')">Газпромнефть</button>
-    <button class="filter-btn" onclick="setBrand('Роснефть')">Роснефть</button>
-  </div>
-
-  <!-- Кнопка смены слоев карты справа -->
-  <div class="layer-toggle-btn" onclick="toggleMapLayer()">
-    <svg viewBox="0 0 24 24">
-      <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9.07l-9-7-9 7 1.63 1.27L12 16z"/>
-    </svg>
+  <div class="top-bar">
+    <div class="counter-badge">
+      <div class="status-dot"></div>
+      <span id="counter-text">АЗС в обзоре: ...</span>
+    </div>
+    <div class="filter-scroll">
+      <button class="filter-chip active" data-brand="">Все АЗС</button>
+      <button class="filter-chip" data-brand="Лукойл">Лукойл</button>
+      <button class="filter-chip" data-brand="Газпромнефть">Газпромнефть</button>
+      <button class="filter-chip" data-brand="Роснефть">Роснефть</button>
+      <button class="filter-chip" data-brand="Татнефть">Татнефть</button>
+      <button class="filter-chip" data-brand="Тебойл">Тебойл</button>
+      <button class="filter-chip" data-brand="Нефтьмагистраль">Нефтьмагистраль</button>
+    </div>
   </div>
 
   <div id="map"></div>
@@ -223,126 +237,102 @@
       window.Telegram.WebApp.expand();
     }
 
-    // Слои карты: стандартная светлая подложка и детальный гибридный слой
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
-    });
-    const cartoLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
-    });
-
-    let currentLayerIndex = 0;
-    const availableLayers = [osmLayer, cartoLayer];
-
-    // Инициализируем карту (Жулебино / МКАД из первого скрина)
+    // Инициализация Leaflet карты без кнопки слоев
     const map = L.map('map', {
-      attributionControl: false,
-      zoomControl: false,
-      minZoom: 4,
-      maxZoom: 19
-    }).setView([55.6980, 37.8550], 14);
+      center: [55.751244, 37.618423],
+      zoom: 11,
+      zoomControl: false
+    });
 
-    availableLayers[0].addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-    function toggleMapLayer() {
-      map.removeLayer(availableLayers[currentLayerIndex]);
-      currentLayerIndex = (currentLayerIndex + 1) % availableLayers.length;
-      availableLayers[currentLayerIndex].addTo(map);
+    let markersLayer = L.layerGroup().addTo(map);
+    let currentBrand = "";
+    let fetchTimeout = null;
+
+    // Иконка колонки для маркеров
+    const pumpSvg = `<svg viewBox="0 0 24 24"><path d="M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77zM12 10H6V5h6v5zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>`;
+
+    function getStationIcon(status) {
+      let pinClass = 'pin-green';
+      if (status === 'yellow') pinClass = 'pin-yellow';
+      if (status === 'red') pinClass = 'pin-red';
+
+      return L.divIcon({
+        className: 'custom-leaflet-div-icon',
+        html: `<div class="custom-station-pin ${pinClass}">${pumpSvg}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16]
+      });
     }
 
-    let currentBrand = 'all';
-    let markersLayer = L.layerGroup().addTo(map);
+    async function loadStations() {
+      const b = map.getBounds();
+      const brandParam = currentBrand ? `&brand=${encodeURIComponent(currentBrand)}` : '';
+      
+      // Адрес бэкенда через Cloudflare Tunnel
+      const url = `https://excerpt-decimal-wav-disposal.trycloudflare.com/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
 
-    // Подгрузка всех заправок из бэкенда на сервере при каждом сдвиге/зуме
-    async function loadStationsFromBackend() {
       try {
-        const b = map.getBounds();
-        const brandParam = currentBrand !== 'all' ? `&brand=${encodeURIComponent(currentBrand)}` : '';
-        const url = `https://alexkrylov171.fvds.ru/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Network error');
+        const stations = await response.json();
 
-        const res = await fetch(url);
-        if (res.ok) {
-          const stations = await res.json();
-          renderStations(stations);
-        }
+        markersLayer.clearLayers();
+        document.getElementById('counter-text').innerText = `АЗС в обзоре: ${stations.length}`;
+
+        stations.forEach(st => {
+          const marker = L.marker([st.lat, st.lon], {
+            icon: getStationIcon(st.status)
+          });
+
+          const fuelsHtml = (st.fuels && st.fuels.length) 
+            ? `<div class="fuels-grid">${st.fuels.map(f => `<span class="fuel-tag">${f}</span>`).join('')}</div>` 
+            : '';
+
+          const popupHtml = `
+            <div class="popup-title">${st.name || 'АЗС'}</div>
+            <div class="popup-address">${st.address || ''}</div>
+            <div class="popup-badge ${st.status}">
+              ${st.status_text || 'Очередь: свободно'}
+            </div>
+            ${fuelsHtml}
+            <div class="popup-time">Обновлено: ${st.updated_ago || 'недавно'}</div>
+          `;
+
+          marker.bindPopup(popupHtml);
+          markersLayer.addLayer(marker);
+        });
       } catch (err) {
         console.error('Ошибка загрузки АЗС:', err);
+        document.getElementById('counter-text').innerText = `Ошибка подключения`;
       }
     }
 
-    function renderStations(stations) {
-      markersLayer.clearLayers();
-      let count = 0;
+    function scheduleLoad() {
+      clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(loadStations, 300);
+    }
 
-      stations.forEach(st => {
-        count++;
+    map.on('moveend', scheduleLoad);
+    map.on('zoomend', scheduleLoad);
 
-        // Определение цвета маркера светофора
-        const pinClass = st.status === 'red' ? 'donut-red' : (st.status === 'yellow' ? 'donut-yellow' : 'donut-green');
-        const icon = L.divIcon({
-          className: 'custom-donut',
-          html: `<div class="donut-pin ${pinClass}"></div>`,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        });
-
-        // Разбор топлива
-        const fuels = Array.isArray(st.fuels) ? st.fuels : (typeof st.fuels === 'string' ? st.fuels.split(',') : []);
-        const fuelsHtml = fuels.map(f => {
-          const p = f.split(':');
-          return `
-            <div class="fuel-item">
-              <span class="fuel-type">${p[0] ? p[0].trim() : ''}</span>
-              <span class="fuel-price">${p[1] ? p[1].trim() : ''}</span>
-            </div>
-          `;
-        }).join('');
-
-        const badgeClass = st.status === 'red' ? 'badge-red' : (st.status === 'yellow' ? 'badge-yellow' : 'badge-green');
-
-        const popupHtml = `
-          <div class="station-popup">
-            <div class="popup-header">${st.name || st.brand || 'АЗС'}</div>
-            <div class="popup-sub">${st.address || ''}</div>
-            <div class="status-badge ${badgeClass}">${st.status_text || 'Работает'}</div>
-            <div style="font-size:11px; margin-bottom:4px; color:#555;">⏳ ${st.queue_text || 'Очереди нет'}</div>
-            <div class="fuel-list">
-              ${fuelsHtml}
-            </div>
-            <div class="popup-footer">
-              <span>Обновлено: ${st.updated_ago || 'недавно'}</span>
-            </div>
-          </div>
-        `;
-
-        const marker = L.marker([st.lat, st.lon], { icon }).bindPopup(popupHtml);
-        markersLayer.addLayer(marker);
+    // Обработка клика по фильтрам брендов
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentBrand = chip.getAttribute('data-brand');
+        loadStations();
       });
+    });
 
-      document.getElementById('counterText').innerText = `АЗС в обзоре: ${count}`;
-    }
-
-    function setBrand(brand) {
-      currentBrand = brand;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
-      loadStationsFromBackend();
-    }
-
-    // Слушаем перемещение и приближение карты
-    map.on('moveend', loadStationsFromBackend);
-
-    // Первичная навигация по параметрам из ссылки Telegram бота
-    const urlParams = new URLSearchParams(window.location.search);
-    const pLat = parseFloat(urlParams.get('lat'));
-    const pLon = parseFloat(urlParams.get('lon'));
-    const pZoom = parseInt(urlParams.get('zoom')) || 14;
-
-    if (!isNaN(pLat) && !isNaN(pLon)) {
-      map.setView([pLat, pLon], pZoom);
-    }
-
-    loadStationsFromBackend();
+    // Первичный запуск при открытии
+    loadStations();
   </script>
 </body>
 </html>
