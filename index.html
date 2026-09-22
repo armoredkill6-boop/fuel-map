@@ -158,13 +158,16 @@
       <div class="status-dot"></div>
       <span id="statusText">Загрузка АЗС...</span>
     </div>
+    <!-- Только реальные сети АЗС региона -->
     <div class="filter-bar">
       <button class="filter-btn active" onclick="setBrand('all', this)">Все АЗС</button>
       <button class="filter-btn" onclick="setBrand('Лукойл', this)">Лукойл</button>
       <button class="filter-btn" onclick="setBrand('Газпромнефть', this)">Газпромнефть</button>
       <button class="filter-btn" onclick="setBrand('Роснефть', this)">Роснефть</button>
+      <button class="filter-btn" onclick="setBrand('Нефтьмагистраль', this)">Нефтьмагистраль</button>
       <button class="filter-btn" onclick="setBrand('Татнефть', this)">Татнефть</button>
       <button class="filter-btn" onclick="setBrand('Teboil', this)">Teboil</button>
+      <button class="filter-btn" onclick="setBrand('ТРАССА', this)">ТРАССА</button>
     </div>
   </div>
 
@@ -220,13 +223,15 @@
     let currentBrand = 'all';
     let fetchTimeout = null;
 
+    // Точные фирменные цвета реальных сетей
     const BRAND_COLORS = {
       'Лукойл': '#E30613',
       'Газпромнефть': '#0072CE',
       'Роснефть': '#FFD200',
+      'Нефтьмагистраль': '#E31B23',
       'Татнефть': '#009A44',
-      'Башнефть': '#80C342',
-      'Teboil': '#D52B1E'
+      'Teboil': '#D52B1E',
+      'ТРАССА': '#FF8C00'
     };
 
     function createStationMarker(s) {
@@ -236,11 +241,9 @@
       let badge = '';
 
       if (s.status === 'no_fuel') {
-        // КРАСНЫЙ маркер ТОЛЬКО если бензин закончился
         pinColor = '#FF1744';
         badge = '<div style="position:absolute;top:-6px;right:-6px;background:#000;color:#FF1744;font-size:10px;border-radius:50%;width:14px;height:14px;text-align:center;line-height:14px;font-weight:bold;border:1px solid #FF1744;">✕</div>';
       } else if (s.status === 'limited') {
-        // Оранжевый значок частичного наличия
         badge = '<div style="position:absolute;top:-6px;right:-6px;background:#FFAB00;color:#000;font-size:10px;border-radius:50%;width:14px;height:14px;text-align:center;line-height:14px;font-weight:bold;">!</div>';
       }
 
@@ -263,7 +266,7 @@
             <div style="font-size:11px;font-weight:normal;opacity:0.9;">${s.status_desc}</div>
           </div>
           <div class="fuels">
-            <b>Актуальные цены (на сегодня):</b><br>${fuelsHtml}
+            <b>Цены на топливо (на сегодня):</b><br>${fuelsHtml}
           </div>
           <div class="updated-time">Проверено: ${s.updated_ago}</div>
         </div>
@@ -276,7 +279,7 @@
       const statusText = document.getElementById("statusText");
       statusText.innerText = "Обновление...";
 
-      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${currentBrand}&limit=800`;
+      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${encodeURIComponent(currentBrand)}&limit=800`;
 
       fetch(url)
         .then(r => r.json())
