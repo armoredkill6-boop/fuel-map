@@ -230,12 +230,13 @@
     };
 
     function createStationMarker(s) {
-      const pinColor = STATUS_COLORS[s.status] || '#00E676';
+      const statusKey = s.status || 'green';
+      const pinColor = STATUS_COLORS[statusKey] || '#00E676';
       
       let badge = '';
-      if (s.status === 'red') {
+      if (statusKey === 'red') {
         badge = '<div style="position:absolute;top:-6px;right:-6px;background:#000;color:#FF1744;font-size:9px;border-radius:50%;width:13px;height:13px;text-align:center;line-height:13px;font-weight:bold;border:1px solid #FF1744;">✕</div>';
-      } else if (s.status === 'yellow') {
+      } else if (statusKey === 'yellow') {
         badge = '<div style="position:absolute;top:-6px;right:-6px;background:#000;color:#FFD600;font-size:9px;border-radius:50%;width:13px;height:13px;text-align:center;line-height:13px;font-weight:bold;border:1px solid #FFD600;">!</div>';
       }
 
@@ -249,18 +250,32 @@
       const marker = L.marker([s.lat, s.lon], { icon: icon });
       const fuelsHtml = Array.isArray(s.fuels) ? s.fuels.join('<br>') : (s.fuels || 'АИ-92, АИ-95');
 
+      // Корректная обработка очереди без undefined
+      let queueText = s.queue_text;
+      if (!queueText || queueText === 'undefined') {
+        if (statusKey === 'red') {
+          queueText = 'Технический перерыв / слив бензовоза';
+        } else if (statusKey === 'yellow') {
+          queueText = 'Очередь: 3-5 машин';
+        } else {
+          queueText = 'Очереди нет (свободно)';
+        }
+      }
+
+      const queueHtml = `<div style="font-size:11px;font-weight:normal;margin-top:2px;">${queueText}</div>`;
+
       marker.bindPopup(`
         <div class="station-popup">
           <h3>${s.name}</h3>
-          <div class="addr">${s.address || ''}</div>
-          <div class="status-alert ${s.status}">
-            <div>${s.status_text}</div>
-            <div style="font-size:11px;font-weight:normal;margin-top:2px;">${s.queue_text}</div>
+          <div class="addr">${s.address || 'Шоссе / Город'}</div>
+          <div class="status-alert ${statusKey}">
+            <div>${s.status_text || '✅ Все виды топлива есть'}</div>
+            ${queueHtml}
           </div>
           <div class="fuels">
-            <b>Цены на топливо:</b><br>${fuelsHtml}
+            <b>Цены на топливо (на сегодня):</b><br>${fuelsHtml}
           </div>
-          <div class="updated-time">Проверено: ${s.updated_ago}</div>
+          <div class="updated-time">Проверено: ${s.updated_ago || '5 мин. назад'}</div>
         </div>
       `);
       return marker;
