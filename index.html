@@ -1,339 +1,263 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Мониторинг АЗС РФ</title>
-
+  
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- MapLibre GL JS -->
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet MarkerCluster (легковесная кластеризация) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
-    }
-    #map {
-      width: 100%;
-      height: 100%;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #fff; }
+    #map { width: 100%; height: 100%; z-index: 1; }
 
-    /* ПОЛНОЕ УДАЛЕНИЕ ВСЕХ ПЛАШЕК, ФЛАГОВ И ССЫЛОК ВНИЗУ */
-    .maplibregl-ctrl-attrib,
-    .maplibregl-ctrl-logo,
-    .leaflet-control-attribution {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-
-    /* Верхняя панель */
-    .top-panel {
+    /* Верхняя панель статуса и фильтров */
+    .top-bar {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      right: 12px;
-      z-index: 10;
-      background: rgba(15, 23, 42, 0.94);
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .status-badge {
+      align-self: flex-start;
+      background: rgba(20, 20, 20, 0.85);
       backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      padding: 10px 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-    }
-    .top-title {
+      padding: 6px 14px;
+      border-radius: 20px;
       font-size: 13px;
-      font-weight: 700;
-      color: #38bdf8;
-    }
-    .top-sub {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-top: 2px;
-    }
-    .live-badge {
-      background: #16a34a;
-      color: #fff;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 8px;
-      font-weight: 700;
-    }
-
-    /* Кнопка GPS */
-    .gps-btn {
-      position: absolute;
-      bottom: 25px;
-      right: 15px;
-      z-index: 10;
-      width: 48px;
-      height: 48px;
-      background: #0284c7;
-      color: #fff;
-      border: none;
-      border-radius: 50%;
-      font-size: 22px;
-      cursor: pointer;
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
-    }
-    .gps-btn:active {
-      transform: scale(0.92);
-    }
-
-    /* Всплывающее окно заправки */
-    .maplibregl-popup-content {
-      background: #1e293b !important;
-      color: #f8fafc !important;
-      border-radius: 14px !important;
-      padding: 12px !important;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
-      min-width: 230px;
-    }
-    .maplibregl-popup-close-button {
-      color: #94a3b8 !important;
-      font-size: 16px !important;
-      padding: 4px 8px !important;
-    }
-    .st-name {
-      font-size: 15px;
-      font-weight: 700;
-      color: #38bdf8;
-      margin-bottom: 3px;
-    }
-    .st-addr {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-bottom: 8px;
-    }
-    .st-row {
-      font-size: 12px;
-      margin: 4px 0;
-      display: flex;
-      justify-content: space-between;
-    }
-    
-    .badge-ok { color: #4ade80; font-weight: 700; }
-    .badge-warn { color: #facc15; font-weight: 700; }
-    .badge-danger { color: #f87171; font-weight: 700; }
-
-    .fuels-line {
-      font-size: 11px;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.1);
-      padding: 4px 6px;
-      border-radius: 6px;
-      margin: 6px 0;
-      border: 1px solid rgba(56, 189, 248, 0.2);
-    }
-
-    /* Блок отправки статуса */
-    .report-block {
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .report-title {
-      font-size: 11px;
-      color: #cbd5e1;
       font-weight: 600;
-      margin-bottom: 6px;
-    }
-    .btn-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      align-items: center;
       gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: auto;
     }
-    .act-btn {
-      background: #334155;
-      border: 1px solid #475569;
-      color: #fff;
-      font-size: 11px;
-      padding: 6px;
-      border-radius: 6px;
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00E676;
+      box-shadow: 0 0 8px #00E676;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      pointer-events: auto;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .filter-btn {
+      background: rgba(30, 30, 30, 0.85);
+      backdrop-filter: blur(6px);
+      color: #ccc;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      white-space: nowrap;
       cursor: pointer;
+      transition: all 0.2s;
     }
-    .act-btn:active {
-      background: #0284c7;
+    .filter-btn.active {
+      background: #0088cc;
+      color: #fff;
+      border-color: #0088cc;
+      font-weight: bold;
     }
+
+    /* Стиль карточки попапа АЗС */
+    .leaflet-popup-content-wrapper {
+      background: #1e1e1e;
+      color: #fff;
+      border-radius: 12px;
+      border: 1px solid #333;
+    }
+    .leaflet-popup-tip { background: #1e1e1e; }
+    .station-popup { font-size: 13px; line-height: 1.4; }
+    .station-popup h3 { margin-bottom: 4px; font-size: 15px; color: #4fc3f7; }
+    .station-popup .addr { color: #aaa; font-size: 11px; margin-bottom: 8px; }
+    .station-popup .fuels { background: #2a2a2a; padding: 6px; border-radius: 6px; font-size: 12px; }
   </style>
 </head>
 <body>
 
-  <div class="top-panel">
-    <div>
-      <div class="top-title">⛽ Мониторинг АЗС РФ</div>
-      <div class="top-sub" id="status-line">Загрузка базы АЗС...</div>
+  <div class="top-bar">
+    <div class="status-badge">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Загрузка АЗС...</span>
     </div>
-    <div class="live-badge">ONLINE</div>
+    <div class="filter-bar" id="brandFilters">
+      <button class="filter-btn active" onclick="setBrand('all', this)">Все АЗС</button>
+      <button class="filter-btn" onclick="setBrand('Лукойл', this)">Лукойл</button>
+      <button class="filter-btn" onclick="setBrand('Газпромнефть', this)">Газпромнефть</button>
+      <button class="filter-btn" onclick="setBrand('Роснефть', this)">Роснефть</button>
+      <button class="filter-btn" onclick="setBrand('Татнефть', this)">Татнефть</button>
+      <button class="filter-btn" onclick="setBrand('Teboil', this)">Teboil</button>
+    </div>
   </div>
 
-  <button class="gps-btn" id="gpsBtn" title="Моя геопозиция">📍</button>
   <div id="map"></div>
 
   <script>
-    // Твой актуальный активный адрес туннеля
-    const API_HOST = "https://62-109-4-17.sslip.io";
-
-    if (window.Telegram && window.Telegram.WebApp) {
-      window.Telegram.WebApp.ready();
-      window.Telegram.WebApp.expand();
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      tg.ready();
     }
 
+    // Параметры из URL (центр и зум от бота)
     const urlParams = new URLSearchParams(window.location.search);
-    const centerLat = parseFloat(urlParams.get('lat')) || 55.751244;
-    const centerLon = parseFloat(urlParams.get('lon')) || 37.618423;
-    const zoomLevel = parseInt(urlParams.get('z')) || 12;
+    let startLat = 55.751244, startLon = 37.618423, startZoom = 12;
 
-    const map = new maplibregl.Map({
-      container: 'map',
-      attributionControl: false,
-      style: {
-        version: 8,
-        sources: {
-          'osm': {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256
-          }
-        },
-        layers: [{ id: 'osm-layer', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }]
-      },
-      center: [centerLon, centerLat],
-      zoom: zoomLevel
-    });
-
-    const markersMap = new Map();
-    let moveTimeout = null;
-
-    // Отправка отчета в базу
-    async function sendReport(stationId, fuelStatus, queueLevel) {
-      const tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user)
-        ? window.Telegram.WebApp.initDataUnsafe.user.id
-        : 0;
-
-      try {
-        const res = await fetch(`${API_HOST}/api/report`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            station_id: stationId,
-            fuel_status: fuelStatus,
-            queue_level: queueLevel,
-            user_id: tgUser
-          })
-        });
-
-        if (res.ok) {
-          alert("Спасибо! Отметка сохранена в базу.");
-          loadLiveStations();
-        } else {
-          alert("Ошибка отправки.");
-        }
-      } catch (err) {
-        alert("Ошибка подключения к серверу.");
-      }
+    if (urlParams.has("center")) {
+      const parts = urlParams.get("center").split(",");
+      startLat = parseFloat(parts[0]);
+      startLon = parseFloat(parts[1]);
+    }
+    if (urlParams.has("zoom")) {
+      startZoom = parseInt(urlParams.get("zoom"));
     }
 
-    // Подгрузка станций из базы fuel_bot.db
-    async function loadLiveStations() {
-      const c = map.getCenter();
-      try {
-        const res = await fetch(`${API_HOST}/api/stations?lat=${c.lat}&lon=${c.lng}`);
-        const data = await res.json();
+    // Инициализация карты с отключением тяжелых анимаций для экономии батареи и ОЗУ
+    const map = L.map('map', {
+      center: [startLat, startLon],
+      zoom: startZoom,
+      fadeAnimation: false,
+      zoomAnimation: true,
+      preferCanvas: true
+    });
 
-        // Очищаем старые маркеры
-        markersMap.forEach(m => m.remove());
-        markersMap.clear();
+    // 1. Облегченная подложка (CartoDB Positron) - идеальна для старых телефонов
+    const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap, © CartoDB'
+    });
 
-        data.forEach(st => {
-          let pinColor = '#22c55e';
-          let queueText = 'Свободно';
-          let badgeClass = 'badge-ok';
+    // 2. Стандартная подробная (OpenStreetMap)
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    });
 
-          if (st.queue_level === 2) {
-            pinColor = '#eab308';
-            queueText = 'Очередь (5-8 авто)';
-            badgeClass = 'badge-warn';
-          } else if (st.queue_level === 3 || st.fuel_status === 'none') {
-            pinColor = '#ef4444';
-            queueText = st.fuel_status === 'none' ? 'Топлива нет!' : 'Затор (10+ авто)';
-            badgeClass = 'badge-danger';
-          }
+    // 3. Темная тема (CartoDB Dark)
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap, © CartoDB'
+    });
 
-          const el = document.createElement('div');
-          el.innerHTML = `<div style="background:${pinColor}; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:bold; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.5); cursor:pointer;">⛽</div>`;
+    // По умолчанию включаем супер-легкую карту
+    lightLayer.addTo(map);
 
-          const fuelsText = (st.fuels && st.fuels.length > 0) ? st.fuels.join(" • ") : "АИ-92 • АИ-95 • ДТ";
+    // Добавляем переключатель слоев в правый верхний угол
+    const baseLayers = {
+      "⚡ Легкая (для слабых тел.)": lightLayer,
+      "🗺️ Подробная (OSM)": osmLayer,
+      "🌙 Темная тема": darkLayer
+    };
+    L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
-          const popupContent = `
-            <div class="st-name">${st.name}</div>
-            <div class="st-addr">${st.address}</div>
-            <div class="fuels-line">${fuelsText}</div>
-            <div class="st-row"><span>Очередь:</span> <b class="${badgeClass}">${queueText}</b></div>
-            <div class="st-row"><span>Статус:</span> <span>${st.updated_text}</span></div>
-            <div class="report-block">
-              <div class="report-title">Отметить обстановку:</div>
-              <div class="btn-grid">
-                <button class="act-btn" onclick="sendReport(${st.id}, 'ok', 1)">🟢 Свободно</button>
-                <button class="act-btn" onclick="sendReport(${st.id}, 'ok', 2)">🟡 Очередь</button>
-                <button class="act-btn" onclick="sendReport(${st.id}, 'ok', 3)">🔴 Затор</button>
-                <button class="act-btn" onclick="sendReport(${st.id}, 'none', 3)">❌ Нет бензина</button>
-              </div>
-            </div>
-          `;
+    // Кластерный слой с оптимизированными радиусами
+    const markersCluster = L.markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 50,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true
+    });
+    map.addLayer(markersCluster);
 
-          const popup = new maplibregl.Popup({ offset: 20 }).setHTML(popupContent);
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([st.lon, st.lat])
-            .setPopup(popup)
-            .addTo(map);
+    let currentBrand = 'all';
+    let fetchTimeout = null;
 
-          markersMap.set(st.id, marker);
-        });
+    // Цвета меток под бренды
+    const BRAND_COLORS = {
+      'Лукойл': '#E30613',
+      'Газпромнефть': '#0072CE',
+      'Роснефть': '#FFD200',
+      'Татнефть': '#009A44',
+      'Башнефть': '#80C342',
+      'Teboil': '#D52B1E'
+    };
 
-        document.getElementById('status-line').innerText = `Загружено ${data.length} реальных АЗС рядом`;
-      } catch (e) {
-        document.getElementById('status-line').innerText = "Ожидание ответа сервера...";
-      }
+    function createStationMarker(station) {
+      const color = BRAND_COLORS[station.brand] || '#00bcd4';
+      const icon = L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      });
+
+      const marker = L.marker([station.lat, station.lon], { icon: icon });
+      const fuelsStr = Array.isArray(station.fuels) ? station.fuels.join('<br>') : (station.fuels || 'АИ-92, АИ-95');
+      
+      marker.bindPopup(`
+        <div class="station-popup">
+          <h3>${station.name}</h3>
+          <div class="addr">${station.address || ''}</div>
+          <div class="fuels"><b>Цены на топливо:</b><br>${fuelsStr}</div>
+        </div>
+      `);
+      return marker;
     }
 
-    map.on('load', loadLiveStations);
+    // Загрузка только видимых станций с бэкенда
+    function loadVisibleStations() {
+      const b = map.getBounds();
+      const statusText = document.getElementById("statusText");
+      statusText.innerText = "Обновление...";
 
-    // Автоматическая догрузка станций при перемещении карты
-    map.on('moveend', () => {
-      clearTimeout(moveTimeout);
-      moveTimeout = setTimeout(loadLiveStations, 400);
-    });
+      const url = `https://62-109-4-17.sslip.io/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&brand=${currentBrand}&limit=300`;
 
-    // Кнопка GPS
-    document.getElementById('gpsBtn').addEventListener('click', () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 13 });
-        }, () => {
-          alert("Включите GPS на устройстве.");
-        }, { enableHighAccuracy: true });
-      }
-    });
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          markersCluster.clearLayers();
+          const markers = data.map(s => createStationMarker(s));
+          markersCluster.addLayers(markers);
+          statusText.innerText = `АЗС в обзоре: ${data.length}`;
+        })
+        .catch(err => {
+          console.error("Ошибка загрузки АЗС:", err);
+          statusText.innerText = "Ошибка сети";
+        });
+    }
+
+    // Debounce для плавного перемещения карты без лагов
+    function onMapMove() {
+      clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(loadVisibleStations, 350);
+    }
+
+    map.on('moveend', onMapMove);
+
+    function setBrand(brand, btn) {
+      currentBrand = brand;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadVisibleStations();
+    }
+
+    // Первоначальная загрузка
+    loadVisibleStations();
   </script>
 </body>
 </html>
