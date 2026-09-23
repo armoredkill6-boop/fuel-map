@@ -239,9 +239,15 @@
       window.Telegram.WebApp.expand();
     }
 
+    // Считываем координаты и масштаб из параметров ссылки (если переданы из бота)
+    const urlParams = new URLSearchParams(window.location.search);
+    const startLat = parseFloat(urlParams.get('lat')) || 55.751244;
+    const startLon = parseFloat(urlParams.get('lon')) || 37.618423;
+    const startZoom = parseInt(urlParams.get('zoom')) || 11;
+
     const map = L.map('map', {
-      center: [55.751244, 37.618423],
-      zoom: 11,
+      center: [startLat, startLon],
+      zoom: startZoom,
       zoomControl: false
     });
 
@@ -274,7 +280,6 @@
       const b = map.getBounds();
       const brandParam = currentBrand ? `&brand=${encodeURIComponent(currentBrand)}` : '';
       
-      // Запрос идет напрямую к твоему новому HTTPS-домену с валидным сертификатом
       const url = `https://fuel-azs-map.ru/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
 
       try {
