@@ -274,8 +274,8 @@
       const b = map.getBounds();
       const brandParam = currentBrand ? `&brand=${encodeURIComponent(currentBrand)}` : '';
       
-      // Возвращаем прямой адрес сервера без промежуточных туннелей
-      const url = `https://alexkrylov171.fvds.ru/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
+      // Запрос идет напрямую к твоему новому HTTPS-домену с валидным сертификатом
+      const url = `https://fuel-azs-map.ru/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
 
       try {
         const response = await fetch(url);
@@ -290,7 +290,6 @@
             icon: getStationIcon(st.status)
           });
 
-          // Поддержка и выделение 100-го бензина
           const fuelsHtml = (st.fuels && st.fuels.length) 
             ? `<div class="fuels-grid">${st.fuels.map(f => {
                 const is100 = f.includes('100');
