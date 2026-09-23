@@ -30,7 +30,6 @@
       z-index: 1;
     }
     
-    /* Верхняя панель управления */
     .top-bar {
       position: absolute;
       top: 12px;
@@ -68,7 +67,6 @@
       box-shadow: 0 0 8px #22c55e;
     }
 
-    /* Горизонтальный скролл фильтров */
     .filter-scroll {
       display: flex;
       gap: 6px;
@@ -102,7 +100,6 @@
       font-weight: 600;
     }
 
-    /* Маркеры АЗС на Leaflet */
     .custom-station-pin {
       width: 32px;
       height: 32px;
@@ -133,7 +130,6 @@
       filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
     }
 
-    /* Карточка АЗС (Popup) */
     .leaflet-popup-content-wrapper {
       background: rgba(15, 23, 42, 0.95) !important;
       backdrop-filter: blur(10px) !important;
@@ -203,6 +199,12 @@
       font-weight: 500;
       color: #e2e8f0;
     }
+    .fuel-tag.highlight-100 {
+      background: rgba(2, 132, 199, 0.3);
+      border-color: #38bdf8;
+      color: #38bdf8;
+      font-weight: 700;
+    }
     .popup-time {
       font-size: 10px;
       color: #64748b;
@@ -237,7 +239,6 @@
       window.Telegram.WebApp.expand();
     }
 
-    // Инициализация Leaflet карты без кнопки слоев
     const map = L.map('map', {
       center: [55.751244, 37.618423],
       zoom: 11,
@@ -253,7 +254,6 @@
     let currentBrand = "";
     let fetchTimeout = null;
 
-    // Иконка колонки для маркеров
     const pumpSvg = `<svg viewBox="0 0 24 24"><path d="M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77zM12 10H6V5h6v5zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>`;
 
     function getStationIcon(status) {
@@ -274,8 +274,8 @@
       const b = map.getBounds();
       const brandParam = currentBrand ? `&brand=${encodeURIComponent(currentBrand)}` : '';
       
-      // Адрес бэкенда через Cloudflare Tunnel
-      const url = `https://excerpt-decimal-wav-disposal.trycloudflare.com/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
+      // Возвращаем прямой адрес сервера без промежуточных туннелей
+      const url = `https://alexkrylov171.fvds.ru/api/stations?min_lat=${b.getSouth()}&max_lat=${b.getNorth()}&min_lon=${b.getWest()}&max_lon=${b.getEast()}&limit=600${brandParam}`;
 
       try {
         const response = await fetch(url);
@@ -290,8 +290,12 @@
             icon: getStationIcon(st.status)
           });
 
+          // Поддержка и выделение 100-го бензина
           const fuelsHtml = (st.fuels && st.fuels.length) 
-            ? `<div class="fuels-grid">${st.fuels.map(f => `<span class="fuel-tag">${f}</span>`).join('')}</div>` 
+            ? `<div class="fuels-grid">${st.fuels.map(f => {
+                const is100 = f.includes('100');
+                return `<span class="fuel-tag ${is100 ? 'highlight-100' : ''}">${f}</span>`;
+              }).join('')}</div>` 
             : '';
 
           const popupHtml = `
@@ -321,7 +325,6 @@
     map.on('moveend', scheduleLoad);
     map.on('zoomend', scheduleLoad);
 
-    // Обработка клика по фильтрам брендов
     document.querySelectorAll('.filter-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -331,7 +334,6 @@
       });
     });
 
-    // Первичный запуск при открытии
     loadStations();
   </script>
 </body>
