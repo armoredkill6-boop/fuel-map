@@ -239,8 +239,8 @@
       window.Telegram.WebApp.expand();
     }
 
-    // Считываем координаты и масштаб из параметров ссылки (если переданы из бота)
     const urlParams = new URLSearchParams(window.location.search);
+    const hasCustomCoords = urlParams.has('lat') && urlParams.has('lon');
     const startLat = parseFloat(urlParams.get('lat')) || 55.751244;
     const startLon = parseFloat(urlParams.get('lon')) || 37.618423;
     const startZoom = parseInt(urlParams.get('zoom')) || 11;
@@ -255,6 +255,19 @@
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
+
+    // Автоматическое определение геопозиции пользователя, если город не передан жестко в URL
+    if (!hasCustomCoords && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          map.setView([pos.coords.latitude, pos.coords.longitude], 12);
+        },
+        () => {
+          // Если пользователь отклонил геопозицию — остаемся на Москве по умолчанию
+        },
+        { timeout: 5000 }
+      );
+    }
 
     let markersLayer = L.layerGroup().addTo(map);
     let currentBrand = "";
