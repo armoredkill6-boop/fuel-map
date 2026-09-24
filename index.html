@@ -216,6 +216,105 @@
       margin-top: 6px;
       text-align: right;
     }
+
+    /* Кнопка отправки отчета в попапе */
+    .btn-report-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: rgba(2, 132, 199, 0.25);
+      border: 1px solid #38bdf8;
+      color: #38bdf8;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-report-action:active {
+      background: #0284c7;
+      color: #ffffff;
+      transform: scale(0.98);
+    }
+
+    /* Модальное окно репорта */
+    .report-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .report-modal.active {
+      display: flex;
+    }
+    .report-sheet {
+      background: #1e293b;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 20px 20px 0 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px;
+      box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.6);
+      animation: sheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes sheetUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .sheet-subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .sheet-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      color: #f8fafc;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sheet-option:active {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(0.99);
+    }
+    .sheet-cancel {
+      margin-top: 8px;
+      text-align: center;
+      padding: 10px;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -238,11 +337,38 @@
 
   <div id="map"></div>
 
+  <!-- Модальное окно репорта -->
+  <div id="reportModal" class="report-modal" onclick="closeReportModal(event)">
+    <div class="report-sheet" onclick="event.stopPropagation()">
+      <div id="sheetStationName" class="sheet-title">АЗС</div>
+      <div class="sheet-subtitle">Какая обстановка на заправке прямо сейчас?</div>
+      
+      <button class="sheet-option" onclick="submitStatus('no_fuel', 'normal')">
+        <span>🔴</span>
+        <span><strong>Нет топлива</strong> (закончилось / станция закрыта)</span>
+      </button>
+      <button class="sheet-option" onclick="submitStatus('ok', 'high')">
+        <span>🟡</span>
+        <span><strong>Большая очередь</strong> (более 10 машин / долго)</span>
+      </button>
+      <button class="sheet-option" onclick="submitStatus('ok', 'normal')">
+        <span>🟢</span>
+        <span><strong>Всё отлично</strong> (топливо есть, свободно)</span>
+      </button>
+      
+      <div class="sheet-cancel" onclick="closeReportModal()">Отмена</div>
+    </div>
+  </div>
+
   <script>
-    if (window.Telegram && window.Telegram.WebApp) {
-      window.Telegram.WebApp.ready();
-      window.Telegram.WebApp.expand();
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
     }
+    const currentUserId = tg?.initDataUnsafe?.user?.id || 0;
+
+    let activeStationId = null;
 
     // 1. Считываем параметры координат из URL WebApp
     const urlParams = new URLSearchParams(window.location.search);
@@ -313,6 +439,8 @@
               }).join('')}</div>` 
             : '';
 
+          const safeName = (st.name || 'АЗС').replace(/'/g, "\\'");
+
           const popupHtml = `
             <div class="popup-title">${st.name || 'АЗС'}</div>
             <div class="popup-address">${st.address || ''}</div>
@@ -321,6 +449,9 @@
             </div>
             ${fuelsHtml}
             <div class="popup-time">Обновлено: ${st.updated_ago || 'недавно'}</div>
+            <button class="btn-report-action" onclick="openReportModal(${st.id}, '${safeName}')">
+              ⚠️ Сообщить об обстановке
+            </button>
           `;
 
           marker.bindPopup(popupHtml);
@@ -331,6 +462,55 @@
         document.getElementById('counter-text').innerText = `Ошибка подключения`;
       }
     }
+
+    // Модальное окно управления
+    window.openReportModal = function(stationId, stationName) {
+      activeStationId = stationId;
+      document.getElementById('sheetStationName').innerText = stationName || 'АЗС';
+      document.getElementById('reportModal').classList.add('active');
+    };
+
+    window.closeReportModal = function() {
+      document.getElementById('reportModal').classList.remove('active');
+      activeStationId = null;
+    };
+
+    // Отправка данных на сервер
+    window.submitStatus = async function(fuelStatus, queueLevel) {
+      if (!activeStationId) return;
+
+      const payload = {
+        station_id: activeStationId,
+        user_id: currentUserId,
+        fuel_status: fuelStatus,
+        queue_level: queueLevel,
+        comment: "WebApp report"
+      };
+
+      try {
+        const res = await fetch("https://fuel-azs-map.ru/api/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          if (tg?.showPopup) {
+            tg.showPopup({ message: "Спасибо! Данные обновлены." });
+          } else {
+            alert("Спасибо! Данные обновлены.");
+          }
+          closeReportModal();
+          map.closePopup();
+          loadStations(); // Сразу перерисовывает маркер новым цветом
+        } else {
+          alert("Не удалось отправить. Попробуйте снова.");
+        }
+      } catch (e) {
+        console.error("Ошибка отправки отчета:", e);
+        alert("Сетевая ошибка при отправке.");
+      }
+    };
 
     function scheduleLoad() {
       clearTimeout(fetchTimeout);
